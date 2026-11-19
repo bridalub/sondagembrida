@@ -1,0 +1,24 @@
+# Nada de segredo, banco, dado real ou lixo local dentro da imagem
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+env.env
+*.sqlite3
+*.dump
+*.local.txt
+Excel.py
+_*_tmp.py
+media/
+logs/
+staticfiles/
+diagnostico/dados/
+diagnostico/saida/
+docs/DIAGNOSTICO_DADOS_REAIS.md
+**/__pycache__/
+.venv/
+.vscode/
+.idea/
+.claude/
+restauracao/

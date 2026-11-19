@@ -1,0 +1,116 @@
+# Instalação isolada do sondagem-brida. Nada aqui usa rede, volume, banco ou porta de outro projeto.
+# Uso (SEMPRE com projeto e arquivos explícitos, a partir de /opt/apps/sondagem-brida):
+#   docker compose -p sondagem-brida -f deploy/compose.yaml --env-file .env up -d db web
+# worker e agendador ficam no perfil "automacao": NÃO sobem com o comando acima.
+# Só depois da validação e da combinação da virada:
+#   docker compose -p sondagem-brida -f deploy/compose.yaml --env-file .env --profile automacao up -d worker agendador
+name: sondagem-brida
+
+x-logs: &logs
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    image: postgres:16-alpine          # mesma versão do banco de origem (dump compatível)
+    container_name: sondagem-brida-db
+    restart: unless-stopped
+    env_file: ../.env
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "maintenance_work_mem=256MB",
+              "-c", "work_mem=16MB", "-c", "max_connections=40"]
+    shm_size: 256m
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [interna]
+    # sem "ports": o banco não aparece no host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logs
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 1G}
+
+  web:
+    image: sondagem-brida:${IMAGE_TAG:?defina IMAGE_TAG no .env}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: sondagem-brida-web
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      DJANGO_MEDIA_ROOT: /app/media
+      PROSPECCAO_DISPARAR_WORKER: "0"   # o site nunca dispara buscas sozinho; só o worker (perfil automacao)
+    depends_on:
+      db: {condition: service_healthy}
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8050}:8000"   # só local: túnel SSH ou Caddy
+    volumes:
+      - media:/app/media
+    networks: [interna]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; r=urllib.request.Request('http://127.0.0.1:8000/entrar/', headers={'Host': 'localhost'}); sys.exit(0 if urllib.request.urlopen(r, timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *logs
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 768M}
+
+  worker:
+    image: sondagem-brida:${IMAGE_TAG:?defina IMAGE_TAG no .env}
+    container_name: sondagem-brida-worker
+    profiles: ["automacao"]
+    restart: unless-stopped
+    command: ["python", "manage.py", "prospeccao_worker", "--intervalo", "15"]
+    env_file: ../.env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      DJANGO_MEDIA_ROOT: /app/media
+      PROSPECCAO_DISPARAR_WORKER: "0"
+    depends_on:
+      db: {condition: service_healthy}
+    volumes:
+      - media:/app/media
+    networks: [interna]
+    logging: *logs
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 768M}
+
+  agendador:
+    image: sondagem-brida:${IMAGE_TAG:?defina IMAGE_TAG no .env}
+    container_name: sondagem-brida-agendador
+    profiles: ["automacao"]
+    restart: unless-stopped
+    # Salesforce (somente leitura) de hora em hora, no minuto 5
+    command: ["sh", "-c", "while true; do s=$$(( (65 - $$(date +%-M)) % 60 )); sleep $$(( s * 60 )); python manage.py sincronizar_automatico; sleep 60; done"]
+    env_file: ../.env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      PROSPECCAO_DISPARAR_WORKER: "0"
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [interna]
+    logging: *logs
+    deploy:
+      resources:
+        limits: {cpus: "0.5", memory: 384M}
+
+networks:
+  interna: {}
+
+volumes:
+  pgdata: {}
+  media: {}

@@ -56,6 +56,12 @@ MIDDLEWARE = [
     "prospeccao.papeis.PapelMiddleware",  # Insight Sales só vê as telas dele
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+# Arquivos estáticos servidos pelo próprio app (container da VPS): o proxy (Caddy) só repassa o domínio.
+try:
+    import whitenoise  # noqa: F401
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+except ImportError:
+    pass
 
 ROOT_URLCONF = "config.urls"
 
