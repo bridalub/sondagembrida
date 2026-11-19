@@ -1295,7 +1295,9 @@ def processar_item(item, consulta, execucao, ctx, est, frente, plano, carga, mun
     if nao_e_empresa(nome):
         return "fora: não é empresa (ponto de embarque ou local público)"
     # 1. CNPJ citado ou identificado na base local (sem custo)
-    cnpj, como = (item.get("cnpj_citado"), "CNPJ citado no resultado do Google") if item.get("cnpj_citado") else \
+    citado = _dig(item.get("cnpj_citado"))  # só dígitos: a busca pode trazer "12.345.678/0001-90"
+    origem_cit = "da busca web da OpenAI" if "OpenAI" in (item.get("verificacao") or "") else "do Google"
+    cnpj, como = (citado, f"CNPJ citado no resultado {origem_cit}") if citado else \
         identificar_na_receita(carga, municipios, nome, tels, end)
     if cnpj and not _cnpj_valido(cnpj):
         cnpj, como = None, "CNPJ citado inválido"

@@ -334,3 +334,27 @@ class GoogleSemCreditoTests(Base):
         self.assertTrue(Empresa.objects.filter(nome="Vento Novo Transportes").exists())
         logs = " ".join(LogExecucao.objects.filter(execucao=ex).values_list("mensagem", flat=True))
         self.assertIn("Google reservado à identificação", logs)
+
+    def test_cnpj_pontuado_da_openai_grava_so_digitos(self):
+        """Caso real (execução 13 da VPS): a OpenAI devolveu o CNPJ com pontuação e a gravação estourou o campo de 14."""
+        from prospeccao.models import Candidato
+        from prospeccao.tests.test_fluxo_identificacao import doc
+        cnpj = doc("778899660001")
+        fmt_ = f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
+        from types import SimpleNamespace as N
+        from prospeccao.models import Execucao, FrenteComercial
+        ex = Execucao.objects.create(pesquisa=self.p, status=Execucao.Status.EXECUTANDO)
+        est = N(vistos_google=set(), sf={}, leads=set(), cache_cz=None)
+        frente = self.p.frentes.first() or FrenteComercial.objects.create(nome="Frota", descricao="x")
+        item = {"nome_citado": "Pontuada Transportes", "cnpj_citado": fmt_, "telefones": [], "emails": [],
+                "endereco_citado": "R. Y, 1 - Guarulhos - SP", "url": "https://pontuada.com.br/",
+                "dominio": "pontuada.com.br", "diretorio": False,
+                "verificacao": "citado pela busca web da OpenAI (URL retornada pela ferramenta)"}
+        from prospeccao.conectores.base import ContextoExecucao
+        st = dg.processar_item(item, "transportadora Guarulhos", ex, ContextoExecucao(), est, frente, None, None,
+                               None, set(), {}, set(), lambda *a, **k: None, "Guarulhos")
+        self.assertNotIn("inválido", st)
+        for c in Candidato.objects.filter(cnpj_candidato__isnull=False).exclude(cnpj_candidato=""):
+            self.assertEqual(len(c.cnpj_candidato), 14)
+        self.assertTrue(SelecaoPesquisa.objects.filter(pesquisa=self.p, cnpj=cnpj).exists() or "conhecida" in st, st)
+
