@@ -106,7 +106,7 @@ services:
     logging: *logs
     deploy:
       resources:
-        limits: {cpus: "0.5", memory: 384M}
+        limits: {cpus: "0.5", memory: 1G}   # sincronização completa (contas + notas) passou de 384M
 
 networks:
   interna: {}
