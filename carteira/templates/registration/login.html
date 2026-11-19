@@ -1,0 +1,183 @@
+{% extends "carteira/base.html" %}
+{% load static %}
+{% block title %}Entrar{% endblock %}
+{% block head_extra %}
+<style>
+body.login-pg { background: #fff; }
+body.login-pg main { padding: 0; }
+.ent { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); min-height: 100vh; }
+
+/* ----- painel da marca */
+.ent-marca {
+  position: relative; overflow: hidden; color: #e8eaf4; padding: 44px 56px;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 40px;
+  background:
+    radial-gradient(1100px 520px at 110% 115%, rgba(238,102,47,.30), transparent 60%),
+    radial-gradient(700px 420px at -10% -20%, rgba(83,91,148,.55), transparent 65%),
+    linear-gradient(160deg, #262d68 0%, #21275A 45%, #181d45 100%);
+}
+.ent-marca::before {  /* trama fina, discreta */
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+}
+.ent-b { position: absolute; right: -60px; bottom: -80px; width: 340px; height: auto; max-width: none; opacity: .06; pointer-events: none; }
+.ent-logo { position: relative; height: 58px; width: auto; display: block; align-self: flex-start; }
+.ent-tese { position: relative; max-width: 520px; }
+.ent-selo {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: #ffb48f; margin-bottom: 18px;
+}
+.ent-selo::before { content: ""; width: 28px; height: 3px; border-radius: 2px; background: #EE662F; }
+.ent-tese h2 { font-size: clamp(28px, 3.1vw, 42px); line-height: 1.12; margin: 0 0 16px; color: #fff; font-weight: 700; letter-spacing: -.01em; }
+.ent-tese h2 em { font-style: normal; color: #ff9a6b; }
+.ent-tese p { margin: 0; font-size: 16px; color: #c9cde3; max-width: 460px; }
+.ent-itens { position: relative; list-style: none; margin: 34px 0 0; padding: 0; display: grid; gap: 14px; }
+.ent-itens li { display: flex; gap: 14px; align-items: flex-start; }
+.ent-ico {
+  flex: 0 0 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); color: #ffb48f;
+}
+.ent-ico svg { width: 20px; height: 20px; }
+.ent-itens strong { display: block; color: #fff; font-size: 15px; }
+.ent-itens span { font-size: 13.5px; color: #b3b8d4; }
+.ent-rodape { position: relative; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: #9aa0c3; }
+
+/* ----- formulário */
+.ent-form { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 48px 32px; background: #fff; }
+.ent-caixa { width: 100%; max-width: 400px; }
+.ent-logo-m { display: none; }
+.ent-caixa h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; color: #21275A; letter-spacing: -.01em; }
+.ent-caixa .sub { margin: 0 0 28px; color: #5a6175; }
+.ent-campo { margin-bottom: 18px; }
+.ent-campo label { display: block; font-weight: 600; font-size: 14px; color: #1c2033; margin-bottom: 6px; }
+.ent-in { position: relative; }
+.ent-in > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #858ca3; pointer-events: none; }
+.ent-in input {
+  width: 100%; height: 50px; padding: 0 48px 0 44px; font-size: 15.5px; border-radius: 10px;
+  border: 1.5px solid #c6cad8; background: #f8f9fc; color: #1c2033; transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.ent-in input:hover { border-color: #858ca3; }
+.ent-in input:focus { background: #fff; border-color: #EE662F; box-shadow: 0 0 0 4px rgba(238,102,47,.18); }
+.ent-in:focus-within > svg { color: #EE662F; }
+.ent-olho {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; min-height: 0;
+  padding: 0; border: 0; border-radius: 8px; background: transparent; color: #5a6175; display: grid; place-items: center; cursor: pointer;
+}
+.ent-olho:hover { background: #eef0f6; color: #21275A; border: 0; }
+.ent-olho svg { width: 20px; height: 20px; }
+.ent-erro {
+  display: flex; gap: 10px; align-items: flex-start; margin: 0 0 20px; padding: 12px 14px; border-radius: 10px;
+  background: #fde8e6; color: #a61b14; border: 1px solid #f3c2bd; font-size: 14px;
+}
+.ent-erro svg { flex: 0 0 18px; width: 18px; height: 18px; margin-top: 1px; }
+.ent-btn {
+  width: 100%; height: 52px; margin-top: 8px; border-radius: 10px; font-size: 16px; font-weight: 700; letter-spacing: .01em;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  background: #EE662F; border: 0; color: #fff; box-shadow: 0 8px 20px -8px rgba(238,102,47,.65); cursor: pointer;
+  transition: background .15s, transform .15s, box-shadow .15s;
+}
+.ent-btn:hover { background: #e2571f; color: #fff; border: 0; transform: translateY(-1px); box-shadow: 0 12px 24px -10px rgba(238,102,47,.75); }
+.ent-btn:active { transform: none; }
+.ent-btn svg { width: 18px; height: 18px; }
+.ent-btn[aria-busy="true"] { opacity: .8; pointer-events: none; }
+.ent-ajuda { margin: 22px 0 0; padding-top: 20px; border-top: 1px solid #e2e5ee; font-size: 13.5px; color: #5a6175; display: flex; gap: 10px; }
+.ent-ajuda svg { flex: 0 0 18px; width: 18px; height: 18px; color: #21275A; margin-top: 1px; }
+.ent-seg { margin-top: 28px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: #858ca3; }
+.ent-seg svg { width: 14px; height: 14px; }
+
+@media (max-width: 960px) {
+  .ent-marca { padding: 36px 36px; }
+  .ent-itens { display: none; }
+}
+@media (max-width: 760px) {
+  .ent { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .ent-marca { padding: 22px 20px 26px; gap: 18px; }
+  .ent-logo { height: 40px; }
+  .ent-tese h2 { font-size: 22px; margin-bottom: 0; }
+  .ent-tese p, .ent-selo, .ent-rodape { display: none; }
+  .ent-b { width: 220px; right: -50px; bottom: -70px; }
+  .ent-form { justify-content: flex-start; padding: 28px 16px 36px; }
+  .ent-caixa h1 { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { .ent-btn, .ent-in input { transition: none; } .ent-btn:hover { transform: none; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="ent">
+  <section class="ent-marca" aria-label="Brida Distribuidora">
+    <img class="ent-b" src="{% static 'brida/img/marca-b-negativo.svg' %}" alt="" aria-hidden="true">
+    <img class="ent-logo" src="{% static 'brida/img/logo-brida-negativo.svg' %}" alt="Brida Distribuidora" width="260" height="118">
+    <div class="ent-tese">
+      <div class="ent-selo">Inteligência comercial</div>
+      <h2>Encontre, qualifique e <em>conquiste</em> novos clientes.</h2>
+      <p>Prospecção, carteira Salesforce e performance da equipe comercial em um só lugar.</p>
+      <ul class="ent-itens">
+        <li><span class="ent-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          <div><strong>Prospecção de leads</strong><span>Empresas novas da região, com CNPJ, situação e contato.</span></div></li>
+        <li><span class="ent-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg></span>
+          <div><strong>Carteira Salesforce</strong><span>Clientes, compras e retornos sincronizados de hora em hora.</span></div></li>
+        <li><span class="ent-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg></span>
+          <div><strong>Performance da equipe</strong><span>Pontos, conquistas e ranking do mês.</span></div></li>
+      </ul>
+    </div>
+    <div class="ent-rodape"><span>© Brida Distribuidora</span><span>Uso exclusivo da equipe comercial</span></div>
+  </section>
+
+  <section class="ent-form">
+    <div class="ent-caixa">
+      <h1>Acesse sua conta</h1>
+      <p class="sub">Entre com o usuário e a senha fornecidos pelo administrador.</p>
+      <form method="post" novalidate id="form-entrar">{% csrf_token %}
+        {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
+        {% if request.GET.expirou %}<p class="ent-erro" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>A tela de login estava desatualizada. Digite usuário e senha de novo.</p>{% endif %}
+        {% if form.errors %}<p class="ent-erro" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Usuário ou senha inválidos. Confira e tente de novo.</p>{% endif %}
+        <div class="ent-campo">
+          <label for="id_username">Usuário</label>
+          <div class="ent-in">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+            <input type="text" name="username" id="id_username" value="{{ form.username.value|default_if_none:'' }}"
+                   autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="150" required
+                   {% if not form.username.value %}autofocus{% endif %}>
+          </div>
+        </div>
+        <div class="ent-campo">
+          <label for="id_password">Senha</label>
+          <div class="ent-in">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            <input type="password" name="password" id="id_password" autocomplete="current-password" required
+                   {% if form.username.value %}autofocus{% endif %}>
+            <button type="button" class="ent-olho" id="ver-senha" aria-label="Mostrar senha" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="ent-btn" id="btn-entrar">Entrar no sistema
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </form>
+      <p class="ent-ajuda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg>
+        <span>Esqueceu a senha ou não tem acesso? Fale com o administrador do sistema.</span></p>
+      <div class="ent-seg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/></svg>Acesso protegido · Brida Distribuidora</div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var b = document.getElementById("ver-senha"), s = document.getElementById("id_password");
+  if (b && s) b.addEventListener("click", function () {
+    var ver = s.type === "password";
+    s.type = ver ? "text" : "password";
+    b.setAttribute("aria-pressed", ver ? "true" : "false");
+    b.setAttribute("aria-label", ver ? "Ocultar senha" : "Mostrar senha");
+    s.focus();
+  });
+  var f = document.getElementById("form-entrar"), btn = document.getElementById("btn-entrar");
+  if (f && btn) f.addEventListener("submit", function () { btn.setAttribute("aria-busy", "true"); btn.firstChild.nodeValue = "Entrando… "; });
+})();
+</script>
+{% endblock %}

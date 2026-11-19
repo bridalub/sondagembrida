@@ -1,0 +1,38 @@
+{% extends "carteira/base.html" %}
+{% block title %}Plano – {{ p.nome }}{% endblock %}
+{% block content %}
+<h1>Plano da pesquisa – <a href="{% url 'prospeccao:pesquisa_detalhe' p.pk %}">{{ p.nome }}</a></h1>
+<div class="card {% if not ia_status.0 %}aviso{% endif %}"><strong>IA:</strong> {{ ia_status.1 }}</div>
+<div class="card"><strong>Objetivo do gestor:</strong> {{ p.objetivo|default:"(não informado)" }}<br>
+  <strong>Frentes:</strong> {{ p.frentes.all|join:", " }} · <strong>Critérios obrigatórios:</strong> {{ p.criterios_obrigatorios|default:"—"|linebreaksbr }}
+  · <strong>Preferências (não excluem):</strong> {{ p.preferencias|default:"—"|linebreaksbr }}</div>
+{% if user.is_staff %}<div class="acoes" style="margin-bottom:12px">
+  <form method="post" action="{% url 'prospeccao:plano_gerar' p.pk %}">{% csrf_token %}<input type="hidden" name="origem" value="ia"><button {% if not ia_status.0 %}disabled title="{{ ia_status.1 }}"{% endif %}>Propor plano com IA</button></form>
+  <form method="post" action="{% url 'prospeccao:plano_gerar' p.pk %}">{% csrf_token %}<input type="hidden" name="origem" value="frentes"><button class="btn sec">Montar plano a partir das frentes (sem IA)</button></form>
+</div>{% endif %}
+{% if plano %}
+<div class="card"><h2 style="margin-top:0">Versão {{ plano.versao }} – {{ plano.get_origem_display }} <span class="mut" style="font-size:13px">{{ plano.criado_em|date:"d/m/Y H:i" }}{% if plano.criado_por %} por {{ plano.criado_por }}{% endif %}{% if plano.observacao %} · {{ plano.observacao }}{% endif %}</span></h2>
+{% if plano.cnaes_rejeitados %}<p class="tag CONFLITO">CNAEs rejeitados (não existem na tabela oficial): {% for r in plano.cnaes_rejeitados %}{{ r.codigo }} ({{ r.frente }}) {% endfor %}</p>{% endif %}
+{% if plano.conteudo.exclusoes_sugeridas_pela_ia %}<p class="mut">Exclusões SUGERIDAS pela IA (não aplicadas): {{ plano.conteudo.exclusoes_sugeridas_pela_ia|join:"; " }}</p>{% endif %}
+<form method="post" action="{% url 'prospeccao:plano_salvar' p.pk %}">{% csrf_token %}
+  <div class="form-campo"><label>Interpretação do objetivo</label><textarea name="interpretacao" rows="2">{{ plano.conteudo.interpretacao }}</textarea></div>
+  <div class="duas">
+  {% for f in frentes_cfg %}<div class="card"><input type="hidden" name="fid" value="{{ f.fid }}"><h2 style="margin-top:0">{{ f.frente }} <span class="mut" style="font-size:12px">({{ f.origem }})</span></h2>
+    <div class="form-campo"><label>CNAEs (códigos/prefixos; conferidos na tabela oficial) – {{ f.cnaes|length }} código(s)</label><textarea name="cnaes_{{ f.fid }}" rows="4">{{ f.cnaes_txt }}</textarea>
+      <details><summary>ver descrições oficiais</summary>{% for c in f.cnaes %}<div class="mut" style="font-size:12px">{{ c.codigo }} – {{ c.descricao }}</div>{% endfor %}</details></div>
+    <div class="form-campo"><label>Termos de operação (nome)</label><textarea name="termos_{{ f.fid }}" rows="3">{{ f.termos_txt }}</textarea></div>
+    <div class="form-campo"><label>Sinais operacionais a investigar (site)</label><textarea name="sinais_{{ f.fid }}" rows="3">{{ f.sinais_txt }}</textarea></div>
+    <div class="form-campo"><label>Contextos que NÃO comprovam operação própria</label><textarea name="neg_{{ f.fid }}" rows="2">{{ f.neg_txt }}</textarea></div>
+  </div>{% endfor %}
+  </div>
+  <div class="duas"><div class="form-campo"><label>Consultas externas (marcadores {cnpj_formatado} {razao_social} {nome_fantasia} {municipio})</label><textarea name="consultas_externas" rows="3">{{ plano.conteudo.consultas_externas|join:"&#10;" }}</textarea></div>
+  <div class="form-campo"><label>Ambiguidades</label><textarea name="ambiguidades" rows="3">{{ plano.conteudo.ambiguidades|join:"&#10;" }}</textarea></div>
+  <div class="form-campo"><label>Exclusões explícitas – termos (só o que o gestor decidir)</label><textarea name="exclusoes_termos" rows="2">{{ plano.conteudo.exclusoes_explicitas.termos|join:"&#10;" }}</textarea></div>
+  <div class="form-campo"><label>Exclusões explícitas – CNAEs</label><textarea name="exclusoes_cnaes" rows="2">{{ plano.conteudo.exclusoes_explicitas.cnaes|join:"&#10;" }}</textarea></div></div>
+  <div class="form-campo"><label>Observação desta versão</label><input name="observacao"></div>
+  {% if user.is_staff %}<button>Salvar ajustes como nova versão</button>{% endif %}
+</form></div>
+{% else %}<p class="mut">Sem plano. Gere a partir das frentes ou com IA.</p>{% endif %}
+<div class="card"><h2>Versões</h2><table>{% for v in versoes %}<tr><td><a href="?v={{ v.versao }}">v{{ v.versao }}</a></td><td>{{ v.get_origem_display }}</td><td>{{ v.criado_em|date:"d/m/Y H:i" }}</td><td>{{ v.criado_por|default:"" }}</td><td>{{ v.execucoes.count }} execução(ões)</td><td>{% if v.pk == p.plano_ativo_id %}<span class="tag CONCLUIDA">ativa</span>{% endif %}</td></tr>{% endfor %}</table>
+{% if usos_ia %}<h2>Chamadas de IA (planejamento)</h2><table>{% for u in usos_ia %}<tr><td>{{ u.criado_em|date:"d/m H:i" }}</td><td>{{ u.status }}</td><td>{{ u.modelo }}</td><td>{{ u.tokens_entrada }}/{{ u.tokens_saida }} tokens</td><td>US$ {{ u.custo_estimado_usd }}</td><td class="mut">{{ u.erro|truncatechars:80 }}</td></tr>{% endfor %}</table>{% endif %}</div>
+{% endblock %}

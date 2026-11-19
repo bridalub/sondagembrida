@@ -1,0 +1,55 @@
+{% extends "carteira/base.html" %}
+{% load carteira_tags %}
+{% block title %}Acompanhar retornos{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Acompanhar retornos <span class="contador">{{ retornos|length }}</span></h1>
+    <p class="lead">Contatos com data de retorno combinada e ainda não concluídos, do mais antigo para o mais novo.</p>
+  </div>
+  <div class="acoes">
+    {% if not eh_adm %}{% elif meus %}<a class="btn sec" href="{% qs_troca meus='' %}">Ver de toda a equipe</a>
+    {% else %}<a class="btn sec" href="{% qs_troca meus='1' %}">{% include "carteira/_icone.html" with nome="pessoa" %}Só os meus</a>{% endif %}
+  </div>
+</div>
+
+<nav class="abas" aria-label="Período do retorno">
+  {% for k, rot, n in abas %}
+  <a href="?{% if meus %}meus=1{% endif %}{% if k %}{% if meus %}&amp;{% endif %}{{ k }}=1{% endif %}" {% if aba == k %}aria-current="page"{% endif %}>{{ rot }} <span class="qt">{{ n }}</span></a>
+  {% endfor %}
+</nav>
+{% if meus or not eh_adm %}<p class="peq mut" style="margin-top:-6px">Mostrando só os retornos registrados por você.</p>{% endif %}
+
+{% if retornos %}
+<div class="tabela"><table>
+  <tr class="cab"><th>Retorno</th><th>Empresa</th><th>Com quem falar</th><th>Próximo passo</th><th>Último contato</th><th>Ações</th></tr>
+  {% for a in retornos %}
+  <tr>
+    <td data-label="Retorno"><strong>{{ a.data_retorno|date:"d/m/Y" }}</strong><br>
+      {% if a.data_retorno < hoje %}<span class="tag atrasado">⚠ atrasado</span>{% elif a.data_retorno == hoje %}<span class="tag hoje">hoje</span>{% else %}<span class="tag contorno">agendado</span>{% endif %}</td>
+    <td data-label="Empresa"><a href="{{ a.empresa|url_empresa }}"><strong>{{ a.empresa.nome_fantasia|default:a.empresa.nome }}</strong></a>
+      {% if a.empresa.cidade %}<br><span class="mut peq">{{ a.empresa.cidade }}/{{ a.empresa.uf }}</span>{% endif %}
+      {% if a.empresa.nao_contatar %}<br><span class="tag NAO_CONTATAR">não contatar</span>{% endif %}</td>
+    <td data-label="Contato">{% if a.contato %}<strong>{{ a.contato.nome }}</strong><br>{% endif %}
+      {% with tel=a.tel_mostrar %}
+      {% if tel %}<span class="contato-valor"><a class="v" href="{{ tel|tel_href }}">{{ tel }}</a>
+        <button type="button" class="icone-btn" data-copy="{{ tel }}" data-copy-rotulo="Telefone" aria-label="Copiar telefone {{ tel }}">{% include "carteira/_icone.html" with nome="copiar" %}</button></span>
+      {% else %}<span class="nd">sem telefone</span>{% endif %}{% endwith %}</td>
+    <td class="quebra" data-label="Próximo passo">{{ a.proxima_acao|default:"Retornar o contato combinado" }}</td>
+    <td data-label="Último contato">{{ a.data_hora|date:"d/m/Y" }} · {{ a.usuario }}<br><span class="mut peq">{{ a.get_resultado_display }}</span></td>
+    <td data-label="Ações"><div class="acoes">
+      {% if not a.empresa.nao_contatar %}<a class="btn btn-mini" href="{% url 'carteira:registrar_abordagem' a.empresa.pk %}?proximo={{ proximo|urlencode }}">Registrar contato</a>{% endif %}
+      <form method="post" action="{% url 'carteira:concluir_retorno' a.pk %}" data-confirma="Concluir este retorno sem registrar um novo contato?">{% csrf_token %}
+        <input type="hidden" name="proximo" value="{{ proximo }}"><button class="btn sec btn-mini" title="Marca o retorno como resolvido sem registrar contato">Concluir sem contato</button></form>
+    </div></td>
+  </tr>
+  {% endfor %}
+</table></div>
+{% else %}
+<div class="card vazio">
+  <h2>{% if aba == "atrasados" %}Nenhum retorno atrasado{% elif aba == "hoje" %}Nenhum retorno para hoje{% elif aba == "proximos" %}Nenhum retorno agendado para os próximos dias{% else %}Nenhum retorno pendente{% endif %}</h2>
+  <p>Ao registrar uma abordagem com data de retorno, ela aparece aqui até ser concluída.</p>
+  <div class="acoes">{% if eh_adm %}<a class="btn sec" href="{% url 'prospeccao:oportunidades' %}?etapa=primeira">Ver empresas prontas para abordar</a>{% else %}<a class="btn sec" href="{% url 'prospeccao:insight_sales' %}">Ver leads a procurar</a>{% endif %}</div>
+</div>
+{% endif %}
+{% endblock %}

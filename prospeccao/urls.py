@@ -1,0 +1,63 @@
+from django.urls import path
+
+from prospeccao import views_insight
+from prospeccao import views_usuarios as vu
+from prospeccao import views
+from prospeccao import views_planejada as vp
+
+app_name = "prospeccao"
+
+urlpatterns = [
+    path("", views.visao_geral, name="visao_geral"),
+    path("insight-sales/", views_insight.insight_sales, name="insight_sales"),
+    path("insight-sales/painel/", views_insight.captacao, name="captacao"),
+    path("insight-sales/painel/<slug:tipo>/", views_insight.captacao_detalhe, name="captacao_detalhe"),
+    path("insight-sales/performance/", views_insight.minha_performance, name="minha_performance"),
+    path("insight-sales/leads/<int:pk>/atendimento/", views_insight.atendimento, name="atendimento"),
+    path("insight-sales/leads/<int:pk>/desclassificar/", views_insight.desclassificar, name="desclassificar"),
+    path("prospeccao/pesquisas/", views.pesquisas, name="pesquisas"),
+    path("prospeccao/pesquisas/nova/", views.pesquisa_form, name="pesquisa_nova"),
+    path("prospeccao/pesquisas/<int:pk>/", views.pesquisa_detalhe, name="pesquisa_detalhe"),
+    path("prospeccao/pesquisas/<int:pk>/editar/", views.pesquisa_form, name="pesquisa_editar"),
+    path("prospeccao/pesquisas/<int:pk>/executar/", views.executar_pesquisa, name="pesquisa_executar"),
+    path("prospeccao/pesquisas/<int:pk>/alternar/", views.alternar_pesquisa, name="pesquisa_alternar"),
+    path("prospeccao/pesquisas/<int:pk>/csv/", views.importar_csv, name="pesquisa_csv"),
+    path("prospeccao/execucoes/", views.execucoes, name="execucoes"),
+    path("prospeccao/execucoes/<int:pk>/", views.execucao_detalhe, name="execucao_detalhe"),
+    path("prospeccao/execucoes/<int:pk>/cancelar/", views.cancelar_execucao, name="execucao_cancelar"),
+    path("prospeccao/execucoes/<int:pk>/pausar/", views.pausar_execucao, name="execucao_pausar"),
+    path("prospeccao/oportunidades/", views.oportunidades, name="oportunidades"),
+    path("prospeccao/oportunidades/exportar/", views.exportar_oportunidades, name="oportunidades_exportar"),
+    path("prospeccao/oportunidades/<int:pk>/", views.oportunidade_detalhe, name="oportunidade"),
+    path("prospeccao/oportunidades/<int:pk>/liberar/", views.liberar, name="liberar"),
+    path("prospeccao/oportunidades/<int:pk>/descartar/", views.descartar, name="descartar"),
+    path("prospeccao/oportunidades/<int:pk>/reabrir/", views.reabrir, name="reabrir"),
+    path("prospeccao/oportunidades/<int:pk>/atribuir/", views.atribuir, name="atribuir"),
+    path("prospeccao/oportunidades/<int:pk>/prioridade/", views.prioridade, name="prioridade"),
+    path("prospeccao/empresas/<int:pk>/", views.empresa, name="empresa"),
+    path("prospeccao/empresas/<int:pk>/reavaliar/", views.reavaliar, name="reavaliar"),
+    path("prospeccao/revisao/", views.revisao, name="revisao"),
+    path("prospeccao/candidatos/<int:pk>/", views.candidato, name="candidato"),
+    path("prospeccao/candidatos/<int:pk>/cnpj/", views.candidato_informar_cnpj, name="candidato_cnpj"),
+    path("prospeccao/candidatos/<int:pk>/vincular/<int:empresa_id>/", views.candidato_vincular, name="candidato_vincular"),
+    path("prospeccao/candidatos/<int:pk>/descartar/", views.candidato_descartar, name="candidato_descartar"),
+    path("prospeccao/candidatos/<int:pk>/reabrir/", views.candidato_reabrir, name="candidato_reabrir"),
+    path("prospeccao/base-receita/", views.base_receita, name="base_receita"),
+    path("prospeccao/frentes/", vp.frentes, name="frentes"),
+    path("prospeccao/pesquisas/<int:pk>/plano/", vp.plano, name="plano"),
+    path("prospeccao/pesquisas/<int:pk>/plano/gerar/", vp.plano_gerar, name="plano_gerar"),
+    path("prospeccao/pesquisas/<int:pk>/plano/salvar/", vp.plano_salvar, name="plano_salvar"),
+    path("prospeccao/pesquisas/<int:pk>/lista/", vp.lista, name="lista"),
+    path("prospeccao/selecoes/<int:pk>/revisar/", vp.selecao_revisar, name="selecao_revisar"),
+    path("prospeccao/canais/<int:pk>/acao/", vp.canal_acao, name="canal_acao"),
+    path("prospeccao/integracoes/", views.integracoes, name="integracoes"),
+    path("prospeccao/parametros/", views.parametros, name="parametros"),
+    path("gestao/usuarios/", vu.usuarios, name="usuarios"),
+    path("gestao/usuarios/novo/", vu.usuario_novo, name="usuario_novo"),
+    path("gestao/usuarios/<int:pk>/", vu.usuario_editar, name="usuario_editar"),
+    path("gestao/usuarios/<int:pk>/senha/", vu.usuario_senha, name="usuario_senha"),
+    path("gestao/usuarios/<int:pk>/ativo/", vu.usuario_ativo, name="usuario_ativo"),
+    path("prospeccao/parametros/limpar/", views.limpar_resultados, name="limpar_resultados"),
+    path("prospeccao/fontes/", views.fontes, name="fontes"),
+    path("prospeccao/fontes/<int:pk>/", views.fonte_form, name="fonte_editar"),
+]

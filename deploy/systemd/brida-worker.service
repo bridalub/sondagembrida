@@ -1,0 +1,16 @@
+[Unit]
+Description=BRIDA Prospeccao - fila de buscas (worker permanente)
+After=network.target postgresql.service
+
+[Service]
+User=brida
+Group=brida
+WorkingDirectory=/opt/brida-prospeccao
+EnvironmentFile=/opt/brida-prospeccao/.env
+# Com este worker ligado, use PROSPECCAO_DISPARAR_WORKER=0 no .env (o botao Buscar so enfileira).
+ExecStart=/opt/brida-prospeccao/.venv/bin/python manage.py prospeccao_worker --intervalo 15
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

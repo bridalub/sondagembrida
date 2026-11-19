@@ -1,0 +1,143 @@
+{% extends "carteira/base.html" %}
+{% load carteira_tags humanize %}
+{% block title %}Meus leads{% endblock %}
+{% block content %}
+<header class="pq-cab">
+  <div>
+    <h1>Meus leads <span class="contador">{{ total|intcomma }} empresa{{ total|pluralize }}</span></h1>
+    <p class="lead">Empresas encontradas pela prospecção. Abrir, copiar ou ligar não registra abordagem.</p>
+  </div>
+  <div class="pq-acoes">
+    <a class="btn sec" href="{% url 'prospeccao:oportunidades_exportar' %}?{{ querystring }}" title="Exporta o mesmo recorte desta lista">Exportar esta lista (CSV)</a>
+  </div>
+</header>
+
+<nav class="pq-abas" aria-label="Situação dos leads">
+  <a href="?etapa=primeira" {% if request.GET.etapa == "primeira" %}aria-current="page"{% endif %}>Novos</a>
+  <a href="?etapa=validado" {% if request.GET.etapa == "validado" %}aria-current="page"{% endif %}>Cadastro validado</a>
+  <a href="?etapa=andamento" {% if request.GET.etapa == "andamento" %}aria-current="page"{% endif %}>Em acompanhamento</a>
+  <a href="?etapa=completar_cnpj" {% if request.GET.etapa == "completar_cnpj" %}aria-current="page"{% endif %}>Completar CNPJ</a>
+  <a href="?etapa=conferir_cadastro" {% if request.GET.etapa == "conferir_cadastro" %}aria-current="page"{% endif %}>Conferir identidade</a>
+  <a href="?etapa=conhecidas" {% if request.GET.etapa == "conhecidas" %}aria-current="page"{% endif %}>Conhecidas no Salesforce</a>
+  <a href="?etapa=todas" {% if request.GET.etapa == "todas" %}aria-current="page"{% endif %}>Todos</a>
+  <a href="{% url 'prospeccao:revisao' %}">Possíveis correspondências</a>
+</nav>
+
+<form method="get" class="card" role="search" aria-label="Filtrar leads">
+  <div class="pq-filtros">
+    {% with f=form.q %}<div><label for="{{ f.id_for_label }}">{{ f.label }}</label>
+      <div class="campo-busca">{% include "carteira/_icone.html" with nome="buscar" %}{{ f }}</div></div>{% endwith %}
+    {% for f in form.principais|slice:"1:" %}
+    <div><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}</div>
+    {% endfor %}
+    <div class="acoes-f"><button type="submit">{% include "carteira/_icone.html" with nome="buscar" %}Filtrar</button></div>
+  </div>
+  {{ form.abordagem }}
+  <details class="mais-filtros" {% if mais_ativos %}open{% endif %} style="margin-top:8px">
+    <summary>Mais filtros{% if mais_ativos %} <span class="tag info">{{ mais_ativos }} ativo{{ mais_ativos|pluralize }}</span>{% endif %}</summary>
+    <div class="barra-filtros" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))">
+      {% for f in form.mais %}
+      {% if f.field.widget.input_type == "checkbox" %}<div class="check"><label for="{{ f.id_for_label }}">{{ f }} {{ f.label }}</label></div>
+      {% else %}<div><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}</div>{% endif %}
+      {% endfor %}
+    </div>
+  </details>
+  {% if filtros_ativos or tem_filtro %}
+  <div class="pq-filtros-rodape" aria-label="Filtros aplicados">
+    {% if filtros_ativos %}<span class="mut">Aplicados:</span>{% for rotulo, valor in filtros_ativos %}<span class="chip">{{ rotulo }}: {{ valor }}</span>{% endfor %}{% endif %}
+    {% if tem_filtro %}<a href="?">Limpar filtros</a>{% endif %}
+  </div>
+  {% endif %}
+</form>
+
+{% if lista %}
+<p class="sr-only" role="status">{{ total }} oportunidades encontradas.</p>
+<div class="op-lista">
+{% for o in lista %}{% with e=o.empresa c=o.contato %}
+  <article class="op-card" aria-labelledby="op-{{ o.pk }}">
+    <div class="bloco">
+      <span class="rotulo">Empresa</span>
+      <h3 id="op-{{ o.pk }}"><a href="{% url 'prospeccao:empresa' e.pk %}">{{ e.nome_fantasia|default:e.razao_social|default:e.nome }}</a></h3>
+      {% if e.nome_fantasia and e.razao_social and e.razao_social != e.nome_fantasia %}<div class="mut peq quebra">{{ e.razao_social }}</div>{% endif %}
+      <div class="linha">
+        {% if e.cnpj %}<span class="cnpj">{{ e.cnpj_formatado }}</span>
+          <button type="button" class="icone-btn" style="min-height:32px;min-width:32px;padding:2px 6px" data-copy="{{ e.cnpj_formatado }}" data-copy-rotulo="CNPJ" aria-label="Copiar CNPJ {{ e.cnpj_formatado }}" title="Copiar CNPJ">{% include "carteira/_icone.html" with nome="copiar" %}</button>
+          <span class="mut peq">{{ e.tipo_estabelecimento }}</span>
+        {% else %}<span class="tag CONFLITO">{{ o.dims.identificacao.rotulo }}</span>{% endif %}
+      </div>
+      <div class="linha">{{ e.cidade|default:"Município desconhecido" }}{% if e.uf %}/{{ e.uf }}{% endif %}</div>
+      <div class="linha">
+        <span class="tag contorno" title="{{ o.dims.identificacao.detalhe }}">{{ o.dims.identificacao.rotulo }}</span>
+        <span class="tag contorno" title="{{ o.dims.salesforce.detalhe }}">{{ o.dims.salesforce.rotulo }}</span>
+        <span class="tag contorno" title="{{ o.dims.contato.detalhe }}">{{ o.dims.contato.rotulo }}</span>
+      </div>
+      <div class="linha mut peq quebra" title="{{ e.cnae }} {{ e.atividade_principal }}">{{ e.atividade_principal|default:e.segmento|default:"Atividade desconhecida"|truncatechars:90 }}</div>
+      <div class="linha">
+        {% if o.selecao and o.selecao.pesquisa %}<span class="tag" title="Pesquisa de origem">{{ o.selecao.pesquisa.nome|truncatechars:40 }}</span>{% endif %}
+        {% if o.selecao and o.selecao.frente %}<span class="tag info" title="Frente comercial">{{ o.selecao.frente.nome }}</span>
+        {% elif o.escopo and o.escopo != "REVISAR" %}<span class="tag {{ o.escopo }}" title="{{ o.escopo_motivo }}">Sinal: {{ o.get_escopo_display }}</span>{% endif %}
+        {% if o.escopo == "REVISAR" %}<span class="tag REVISAR" title="{{ o.escopo_motivo }}">Perfil a revisar</span>{% endif %}
+        {% if o.tipo != "NOVA_EXTERNA" %}<span class="tag {{ o.tipo }}">{{ o.get_tipo_display }}</span>{% endif %}
+        {% if e.situacao_cadastral and e.situacao_cadastral != "ATIVA" %}<span class="tag VERIFICAR_CADASTRO">Receita: {{ e.situacao_cadastral|lower }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="bloco">
+      <span class="rotulo">Como entrar em contato</span>
+      {% include "prospeccao/_contato_linha.html" with tipo="telefone" valor=c.telefone nivel=c.telefone_nivel alerta=c.telefone_alerta finalidade=c.telefone_finalidade whatsapp=c.whatsapp rotulo_empresa=e.nome %}
+      {% include "prospeccao/_contato_linha.html" with tipo="email" valor=c.email nivel=c.email_nivel alerta=c.email_alerta finalidade=c.email_finalidade whatsapp="" rotulo_empresa=e.nome oculto=c.email_oculto %}
+      {% if c.terceiros %}<div class="peq" style="margin-top:4px">⚠ {% if c.so_terceiro %}Só há contato de terceiro: {% else %}Também há contato de terceiro: {% endif %}{% for t in c.terceiros|slice:":2" %}{{ t.valor }} ({{ t.papel }}){% if not forloop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+      {% if c.outros or c.departamento %}<div class="peq mut" style="margin-top:4px">{% if c.departamento %}Depto.: {{ c.departamento }}. {% endif %}{% if c.outros %}<a href="{% url 'prospeccao:empresa' e.pk %}#contatos">+{{ c.outros }} outro{{ c.outros|pluralize }} contato{{ c.outros|pluralize }}</a>{% endif %}</div>{% endif %}
+    </div>
+
+    <div class="bloco">
+      <span class="rotulo">Por que pode comprar</span>
+      {% if o.selecao and o.selecao.motivos_selecao %}
+        <ul class="motivo-lista">{% for m in o.selecao.motivos_selecao|slice:":2" %}<li>{{ m|truncatechars:110 }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if o.evidencia_principal %}
+        <p class="motivo">{% selo_evidencia o.evidencia_principal %} {{ o.evidencia_principal.descricao|truncatechars:120 }}</p>
+        {% if o.evidencia_principal.aplicacoes.all %}<div class="peq mut">Possível aplicação: {{ o.evidencia_principal.aplicacoes.all|join:", "|truncatechars:90 }}</div>{% endif %}
+      {% elif not o.selecao.motivos_selecao %}
+        <p class="motivo">{% if o.resumo %}{{ o.resumo|truncatechars:140 }}{% else %}<span class="nd">Sem evidência ainda — aplicação a investigar (não significa falta de potencial).</span>{% endif %}</p>
+      {% endif %}
+      <div class="linha" style="margin-top:4px"><span class="tag {{ o.prioridade }}" title="{{ o.prioridade_criterios|join:' | ' }}">Prioridade: {{ o.get_prioridade_display|lower }}</span>
+        {% if o.alertas %}<span class="tag PARCIAL" title="{{ o.alertas|join:' | ' }}">⚠ {{ o.alertas|length }} alerta{{ o.alertas|length|pluralize }}</span>{% endif %}</div>
+    </div>
+
+    <div class="bloco acoes-op">
+      <div>
+        <span class="rotulo">Situação</span>
+        <div class="etapa-op"><span class="tag {% if o.etapa_cod == 'retorno' %}RETORNO_AGENDADO{% elif o.etapa_cod == 'primeira' %}LIBERADA{% elif o.etapa_cod == 'conferir' %}NOVA{% elif o.etapa_cod == 'andamento' %}info{% else %}CANCELADA{% endif %}">{{ o.etapa_rot }}</span></div>
+        <div class="peq">{% include "carteira/_icone.html" with nome="pessoa" %} {% if o.responsavel %}{{ o.responsavel }}{% else %}<span class="mut">sem responsável</span>{% endif %}</div>
+      </div>
+      <a class="btn sec btn-mini" href="{% url 'prospeccao:empresa' e.pk %}">Abrir empresa<span class="sr-only"> {{ e.nome }}</span></a>
+      {% if not e.nao_contatar and o.status in "NOVA LIBERADA" %}{% if not o.responsavel_id or o.responsavel_id == user.pk or user.is_staff %}
+      <a class="btn btn-mini" href="{% url 'carteira:registrar_abordagem' e.pk %}?proximo={% url 'prospeccao:empresa' e.pk %}">{% include "carteira/_icone.html" with nome="registrar" %}Registrar abordagem<span class="sr-only"> – {{ e.nome }}</span></a>
+      {% endif %}{% endif %}
+    </div>
+  </article>
+{% endwith %}{% endfor %}
+</div>
+
+<nav class="pag" aria-label="Paginação">
+  <span class="mut">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} · {{ total|intcomma }} empresa{{ total|pluralize }}</span>
+  <span class="acoes">
+    {% if pagina.has_previous %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.previous_page_number %}" rel="prev">← Anterior</a>{% endif %}
+    {% if pagina.has_next %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.next_page_number %}" rel="next">Próxima →</a>{% endif %}
+  </span>
+</nav>
+{% else %}
+<div class="card vazio">
+  {% if tem_filtro %}
+  <h2>Nenhuma oportunidade com estes filtros</h2>
+  <p>Tente outra etapa, outro município ou limpe os filtros. Empresas fora do perfil comercial ficam ocultas por padrão (veja “Mais filtros → Perfil comercial”).</p>
+  <div class="acoes"><a class="btn sec" href="?">Limpar filtros</a></div>
+  {% else %}
+  <h2>Nenhuma oportunidade em aberto</h2>
+  <p>As oportunidades aparecem aqui depois que uma pesquisa encontra empresas e o CNPJ é identificado fora da carteira.</p>
+  <div class="acoes"><a class="btn" href="{% url 'prospeccao:pesquisas' %}">Encontrar empresas</a></div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

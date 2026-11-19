@@ -1,0 +1,28 @@
+{% extends "carteira/base.html" %}
+{% block title %}Importação{% endblock %}
+{% block content %}
+<h1>{{ imp.get_tipo_display }} – {{ imp.iniciado_em|date:"d/m/Y H:i" }} <span class="tag {{ imp.status }}">{{ imp.get_status_display }}</span></h1>
+<div class="card">
+  <dl class="dados">
+    <dt>Origem</dt><dd>{{ imp.origem }}</dd>
+    <dt>Finalizada</dt><dd>{{ imp.finalizado_em|date:"d/m/Y H:i:s"|default:"—" }}</dd>
+    <dt>Executada por</dt><dd>{{ imp.executado_por|default:"—" }}</dd>
+    <dt>Totais</dt><dd>lidos {{ imp.lidos }} · criados {{ imp.criados }} · atualizados {{ imp.atualizados }} · inalterados {{ imp.inalterados }} · rejeitados {{ imp.rejeitados }} · inconsistentes {{ imp.inconsistentes }}</dd>
+    {% if imp.mensagem %}<dt>Mensagem</dt><dd>{{ imp.mensagem }}</dd>{% endif %}
+    {% for k, v in imp.detalhes.items %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}
+    {% for k, v in imp.parametros.items %}<dt>{{ k }}</dt><dd><code style="white-space:pre-wrap;font-size:12px">{{ v }}</code></dd>{% endfor %}
+  </dl>
+</div>
+<h2>Ocorrências</h2>
+<p><a href="?">Todas</a>{% for k, rotulo, n in tipos %} · <a href="?tipo={{ k }}">{{ rotulo }} ({{ n }})</a>{% endfor %}</p>
+<div class="tabela"><table>
+  <tr><th>Tipo</th><th>ID origem</th><th>CNPJ origem</th><th>Nome</th><th>Mensagem</th><th>Empresa</th></tr>
+  {% for o in pagina %}
+  <tr><td><span class="tag {{ o.tipo }}">{{ o.get_tipo_display }}</span></td><td>{{ o.id_origem }}</td><td>{{ o.cnpj_origem }}</td><td>{{ o.nome }}</td><td>{{ o.mensagem }}</td>
+    <td>{% if o.empresa %}<a href="{% url 'carteira:empresa_detalhe' o.empresa.pk %}">abrir</a>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6" class="mut">Nenhuma ocorrência.</td></tr>{% endfor %}
+</table></div>
+<div class="pag">{% if pagina.has_previous %}<a href="?tipo={{ tipo|default:'' }}&page={{ pagina.previous_page_number }}">« anterior</a>{% endif %}
+  página {{ pagina.number }} de {{ pagina.paginator.num_pages }}
+  {% if pagina.has_next %}<a href="?tipo={{ tipo|default:'' }}&page={{ pagina.next_page_number }}">próxima »</a>{% endif %}</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% load carteira_tags %}{# parâmetros: tipo ("telefone"|"email"), valor, nivel, alerta, finalidade, whatsapp, rotulo_empresa #}
+<div class="contato-item">
+{% if valor %}
+  <div class="contato-valor">
+    {% if tipo == "telefone" %}{% include "carteira/_icone.html" with nome="telefone" %}<span class="sr-only">Telefone:</span>
+      <a class="v" href="{{ valor|tel_href }}" title="Ligar (não registra abordagem)">{{ valor }}</a>
+    {% else %}{% include "carteira/_icone.html" with nome="email" %}<span class="sr-only">E-mail:</span>
+      <a class="v email" href="mailto:{{ valor }}" title="Escrever (não registra abordagem)">{{ valor }}</a>
+    {% endif %}
+    <span class="contato-acoes">
+      <button type="button" class="icone-btn" data-copy="{{ valor }}" data-copy-rotulo="{% if tipo == 'telefone' %}Telefone{% else %}E-mail{% endif %}"
+        aria-label="Copiar {% if tipo == 'telefone' %}telefone{% else %}e-mail{% endif %} {{ valor }}{% if rotulo_empresa %} de {{ rotulo_empresa }}{% endif %}" title="Copiar">{% include "carteira/_icone.html" with nome="copiar" %}</button>
+      {% if whatsapp %}<a class="icone-btn" href="{{ whatsapp|wa_href }}" target="_blank" rel="noopener noreferrer"
+        aria-label="WhatsApp publicado pela empresa: {{ whatsapp }} (abre em nova aba)" title="WhatsApp publicado pela empresa">{% include "carteira/_icone.html" with nome="whatsapp" %}<span class="peq">WhatsApp</span></a>{% endif %}
+    </span>
+  </div>
+  <div class="linha">{% nivel_canal nivel %}{% if alerta %}<span class="contato-alerta">⚠ {{ alerta }}</span>{% endif %}{% if finalidade %}<span class="mut peq">{{ finalidade }}</span>{% endif %}</div>
+{% else %}
+  <span class="contato-falta">{% if tipo == "telefone" %}{% include "carteira/_icone.html" with nome="telefone" %}Sem telefone direto encontrado{% else %}{% include "carteira/_icone.html" with nome="email" %}{% if oculto %}E-mail não disponibilizado pela fonte{% else %}Sem e-mail direto encontrado{% endif %}{% endif %}</span>
+{% endif %}
+</div>

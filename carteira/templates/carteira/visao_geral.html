@@ -1,0 +1,67 @@
+{% extends "carteira/base.html" %}
+{% load humanize %}
+{% block title %}Resumo da carteira{% endblock %}
+{% block content %}
+<a class="voltar" href="{% url 'carteira:empresas' %}">{% include "carteira/_icone.html" with nome="voltar" %}Clientes cadastrados</a>
+<div class="page-head"><div>
+<h1>Resumo da carteira</h1>
+<p class="lead">Situação de compra e de contato das contas sincronizadas do Salesforce. Cada número abre a lista correspondente.</p>
+</div></div>
+
+<div class="card">
+  <strong>Cobertura do histórico de compras:</strong>
+  {% if cobertura %}
+    notas de venda de {{ cobertura.0|date:"d/m/Y" }} até {{ cobertura.1|date:"d/m/Y H:i" }} (última sincronização).
+    <span class="mut">"Sem compra" significa sem nota de venda nesse intervalo, não que a empresa nunca comprou.
+    {% if not cfg.nunca_comprou_habilitado %}A classificação "Nunca comprou" está desativada na configuração.{% endif %}</span>
+  {% else %}
+    <span class="tag INDISPONIVEL">nenhuma sincronização de compras concluída</span> — todas as empresas ficam com histórico indisponível.
+  {% endif %}
+  {% if notas_sem_empresa %}<br><span class="mut">{{ notas_sem_empresa|intcomma }} nota(s) de contas ainda não importadas (fora do filtro de clientes).</span>{% endif %}
+</div>
+
+<div class="grid">
+  <div class="card kpi"><div class="n">{{ total|intcomma }}</div><div class="l">Empresas na base</div></div>
+  {% for k, rotulo, n in por_compra %}
+  <a class="card kpi" style="text-decoration:none;color:inherit" href="{% url 'carteira:empresas' %}?situacao_compra={{ k }}">
+    <div class="n">{{ n|intcomma }}</div><div class="l"><span class="tag {{ k }}">{{ rotulo }}</span></div></a>
+  {% endfor %}
+  <div class="card kpi"><div class="n">{% if inativos is None %}—{% else %}{{ inativos|intcomma }}{% endif %}</div>
+    <div class="l">Compradores inativos {% if cfg.dias_inatividade %}(&gt; {{ cfg.dias_inatividade }} dias){% else %}(prazo não configurado){% endif %}</div></div>
+</div>
+
+<div class="duas">
+  <div class="card">
+    <h2>Situação de contato</h2>
+    <table>
+      {% for k, rotulo, n in por_contato %}
+      <tr><td><a href="{% url 'carteira:empresas' %}?situacao_contato={{ k }}"><span class="tag {{ k }}">{{ rotulo }}</span></a></td><td>{{ n|intcomma }}</td></tr>
+      {% endfor %}
+      <tr><td><a href="{% url 'carteira:novas_abordagens' %}">Disponíveis para reativação (nunca abordadas)</a></td><td>{{ novas|intcomma }}</td></tr>
+      <tr><td><a href="{% url 'carteira:retornos' %}">Retornos pendentes</a></td><td>{{ retornos_total|intcomma }}
+        {% if retornos_atrasados %}<span class="tag atrasado">{{ retornos_atrasados }} atrasado(s)</span>{% endif %}</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Qualidade cadastral</h2>
+    <table>
+      {% for rotulo, n in qualidade.items %}
+      <tr><td>{{ rotulo }}</td><td>{{ n|intcomma }}</td><td class="mut">{% if total %}{% widthratio n total 100 %}%{% endif %}</td></tr>
+      {% endfor %}
+    </table>
+    <p class="mut">Telefone, e-mail, CNAE e data de abertura não vêm na consulta atual da automação; ver Importações.</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Últimas importações</h2>
+  <div class="tabela"><table>
+    <tr><th>Quando</th><th>Tipo</th><th>Status</th><th>Lidos</th><th>Criados</th><th>Atualizados</th><th>Rejeitados</th><th>Inconsistentes</th></tr>
+    {% for i in ultimas_importacoes %}
+    <tr><td><a href="{% url 'carteira:importacao_detalhe' i.pk %}">{{ i.iniciado_em|date:"d/m/Y H:i" }}</a></td><td>{{ i.get_tipo_display }}</td>
+      <td><span class="tag {{ i.status }}">{{ i.get_status_display }}</span></td><td>{{ i.lidos }}</td><td>{{ i.criados }}</td>
+      <td>{{ i.atualizados }}</td><td>{{ i.rejeitados }}</td><td>{{ i.inconsistentes }}</td></tr>
+    {% empty %}<tr><td colspan="8" class="mut">Nenhuma importação ainda. Rode <code>python manage.py sync_salesforce</code>.</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

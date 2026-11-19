@@ -1,0 +1,23 @@
+{% extends "carteira/base.html" %}
+{% block title %}Fontes de pesquisa{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Fontes de pesquisa</h1>
+    <p class="lead">Onde o sistema procura e confirma empresas, com os limites de uso de cada fonte. Credenciais nunca são exibidas: só o nome da variável e se está configurada.</p>
+  </div>
+  <div class="acoes"><a class="btn sec" href="{% url 'prospeccao:base_receita' %}">Base Receita (cargas e panorama)</a></div>
+</div>
+<div class="tabela"><table>
+<tr><th>Fonte</th><th>Para que serve</th><th>Situação</th><th>Credencial</th><th>Limites</th><th>Uso hoje</th><th>Licença / uso</th>{% if user.is_staff %}<th></th>{% endif %}</tr>
+{% for f in fontes %}<tr>
+  <td><strong>{{ f.nome }}</strong><br><span class="mut peq">{{ f.codigo }}</span></td><td>{{ f.get_tipo_display }}</td>
+  <td>{% if f.habilitada %}<span class="tag ok">habilitada</span>{% else %}<span class="tag CANCELADA">desabilitada</span>{% endif %}</td>
+  <td>{% if f.variavel_credencial %}<code>{{ f.variavel_credencial }}</code><br>{% if f.credencial_configurada %}<span class="tag ok">configurada</span>{% else %}<span class="tag aviso">ausente</span>{% endif %}{% else %}não exige{% endif %}</td>
+  <td class="peq">{% if f.codigo == "google_serpapi" %}franquia incluída da conta SerpApi · intervalo {{ f.intervalo_minimo_segundos }} s{% else %}{{ f.max_consultas_execucao }} por execução · {{ f.max_consultas_dia|default:"sem limite" }} por dia · intervalo {{ f.intervalo_minimo_segundos }} s{% endif %}</td>
+  <td>{% if f.uso_hoje %}{{ f.uso_hoje.consultas }}{% if f.uso_hoje.erros %} <span class="mut peq">({{ f.uso_hoje.erros }} erro)</span>{% endif %}{% else %}0{% endif %}</td>
+  <td class="peq" style="max-width:320px"><span class="mut">{{ f.licenca }}{% if f.termos_uso_url %} · <a href="{{ f.termos_uso_url }}" rel="noopener noreferrer" target="_blank">termos</a>{% endif %}<br>{{ f.dados_permitidos|truncatechars:160 }}</span></td>
+  {% if user.is_staff %}<td><a class="btn sec btn-mini" href="{% url 'prospeccao:fonte_editar' f.pk %}">Editar<span class="sr-only"> {{ f.nome }}</span></a></td>{% endif %}
+</tr>{% empty %}<tr><td colspan="8" class="mut">Nenhuma fonte cadastrada.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "carteira/base.html" %}
+{% load humanize carteira_tags %}
+{% block title %}Pendências{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Pendências</h1>
+    <p class="lead">Dois tipos de pendência: empresas encontradas que ainda <strong>não têm CNPJ confirmado</strong> (não são oportunidades) e oportunidades que <strong>não têm telefone nem e-mail</strong>.</p>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card kpi principal">
+    <span class="t">Identificação pendente</span>
+    <span class="n">{{ abas.0.2|intcomma }}</span>
+    <span class="def">Sem CNPJ, com CNPJ a verificar ou com conflito. Nada é unido automaticamente por nome, telefone ou site.</span>
+  </div>
+  <a class="card kpi" href="{{ url_sem_contato }}">
+    <span class="t">Oportunidades sem contato</span>
+    <span class="n">{{ n_sem_contato|intcomma }}</span>
+    <span class="def">Identificadas, mas sem telefone nem e-mail utilizável.</span>
+    <span class="ir">Abrir lista →</span>
+  </a>
+</div>
+
+<h2>Identificação pendente</h2>
+<nav class="abas" aria-label="Tipo de pendência de identificação">
+  {% for st, rot, n in abas %}<a href="{% qs_troca status=st %}" {% if status_atual == st %}aria-current="page"{% endif %}>{{ rot }} <span class="qt">{{ n }}</span></a>{% endfor %}
+</nav>
+<form method="get" class="card" role="search" aria-label="Filtrar pendências">
+  {% if status_atual %}<input type="hidden" name="status" value="{{ status_atual }}">{% endif %}
+  <div class="barra-filtros">
+    <div><label for="{{ form.q.id_for_label }}">{{ form.q.label }}</label><div class="campo-busca">{% include "carteira/_icone.html" with nome="buscar" %}{{ form.q }}</div></div>
+    <div><label for="{{ form.pesquisa.id_for_label }}">{{ form.pesquisa.label }}</label>{{ form.pesquisa }}</div>
+    <div class="check"><label for="{{ form.com_sugestao.id_for_label }}">{{ form.com_sugestao }} {{ form.com_sugestao.label }}</label></div>
+    <div class="acoes-filtro"><button>Filtrar</button>{% if querystring %}<a class="btn ghost" href="?">Limpar</a>{% endif %}</div>
+  </div>
+</form>
+
+{% if pagina.object_list %}
+<div class="tabela"><table>
+<tr><th>Empresa encontrada</th><th>Município</th><th>Contato na fonte</th><th>Pendência</th><th>Possível correspondência</th><th></th></tr>
+{% for c in pagina %}<tr>
+  <td><a href="{% url 'prospeccao:candidato' c.pk %}"><strong>{{ c.nome }}</strong></a><br><span class="mut peq">{{ c.atividade_fonte|truncatechars:60 }} · {{ c.fonte.nome }}</span></td>
+  <td>{{ c.cidade|default:"—" }}{% if c.uf %}/{{ c.uf }}{% endif %}</td>
+  <td>{% if c.telefone %}{{ c.telefone }}{% endif %}{% if c.site %}<br><span class="mut peq quebra">{{ c.dominio|default:c.site }}</span>{% endif %}{% if not c.telefone and not c.site %}<span class="mut">—</span>{% endif %}</td>
+  <td><span class="tag {{ c.status }}">{{ c.get_status_display }}</span>{% if c.cnpj_candidato %}<br><span class="cnpj peq">{{ c.cnpj_candidato }}</span>{% endif %}
+    {% if c.detalhe_identificacao %}<br><span class="mut peq">{{ c.detalhe_identificacao|truncatechars:110 }}</span>{% endif %}</td>
+  <td>{% for s in c.sugestoes|slice:":2" %}<div class="peq">↳ {{ s.nome }}{% if s.salesforce %} <span class="tag CLIENTE_CARTEIRA">já no Salesforce</span>{% endif %}</div>{% empty %}<span class="mut">—</span>{% endfor %}</td>
+  <td><a class="btn sec btn-mini" href="{% url 'prospeccao:candidato' c.pk %}">Resolver<span class="sr-only"> {{ c.nome }}</span></a></td>
+</tr>{% endfor %}
+</table></div>
+<nav class="pag" aria-label="Paginação">
+  <span class="mut">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} · {{ total|intcomma }} pendência{{ total|pluralize }}</span>
+  <span class="acoes">{% if pagina.has_previous %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.previous_page_number %}">← Anterior</a>{% endif %}
+  {% if pagina.has_next %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.next_page_number %}">Próxima →</a>{% endif %}</span>
+</nav>
+{% else %}
+<div class="card vazio"><h3>Nenhuma pendência de identificação{% if querystring %} com estes filtros{% endif %}</h3>
+  <p>Quando uma pesquisa encontra uma empresa sem CNPJ confirmado, ela aparece aqui para conferência.</p></div>
+{% endif %}
+{% endblock %}

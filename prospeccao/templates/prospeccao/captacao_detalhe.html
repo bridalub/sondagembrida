@@ -1,0 +1,79 @@
+{% extends "carteira/base.html" %}
+{% load humanize carteira_tags %}
+{% block title %}{{ d.titulo }} · Painel de captação{% endblock %}
+{% block content %}
+<style>
+.cd-abas { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.cd-abas a { padding: 7px 12px; border: 1px solid var(--bd); border-radius: 999px; background: #fff; text-decoration: none;
+  color: var(--azul-900); font-weight: 650; font-size: 13.5px; }
+.cd-abas a[aria-current] { background: var(--azul-900); color: #fff; border-color: var(--azul-900); }
+.cd-filtros { display: grid; gap: 10px 12px; grid-template-columns: minmax(200px, 2fr) minmax(160px, 1fr) repeat(2, minmax(140px, 1fr)) auto; align-items: end; }
+@media (max-width: 900px) { .cd-filtros { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .cd-filtros { grid-template-columns: 1fr; } }
+.cd-resumo { display: flex; flex-wrap: wrap; gap: 6px 20px; align-items: baseline; margin: 4px 0 10px; }
+.cd-resumo strong { font-size: 1.35rem; color: var(--azul-900); font-variant-numeric: tabular-nums; }
+td.valor, th.valor { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+</style>
+
+<a class="voltar" href="{% url 'prospeccao:captacao' %}{% if volta %}?{{ volta }}{% endif %}">{% include "carteira/_icone.html" with nome="voltar" %}Voltar ao painel</a>
+<header class="pq-cab">
+  <div>
+    <h1>{{ d.titulo }}{% if simulacao %} <span class="chip pausa">simulação</span>{% endif %}</h1>
+    <p class="lead">{{ d.descricao }}</p>
+  </div>
+</header>
+
+<nav class="cd-abas" aria-label="Cartões do painel">
+  {% for k, rotulo in abas %}<a href="{% url 'prospeccao:captacao_detalhe' k %}?{{ volta }}" {% if k == tipo %}aria-current="page"{% endif %}>{{ rotulo }}</a>{% endfor %}
+</nav>
+
+<form method="get" class="card" role="search" aria-label="Filtrar lista">
+  <input type="hidden" name="mes" value="{{ f.mes }}">
+  {% if f.pesquisa %}<input type="hidden" name="pesquisa" value="{{ f.pesquisa }}">{% endif %}
+  {% if simulacao %}<input type="hidden" name="simulacao" value="1">{% endif %}
+  <div class="cd-filtros">
+    <div><label for="f-q">Cliente ou CNPJ</label>
+      <div class="campo-busca">{% include "carteira/_icone.html" with nome="buscar" %}<input id="f-q" type="search" name="q" value="{{ f.q }}" placeholder="Nome, CNPJ ou nº da nota" autocomplete="off"></div></div>
+    <div><label for="f-vend">{% if tipo == "vendas_nf" or tipo == "vendas" %}Quem vendeu{% else %}Quem atendeu{% endif %}</label>
+      <select id="f-vend" name="vendedor"><option value="">Todos</option>
+        {% for u, nome in vendedores %}<option value="{{ u }}" {% if f.vendedor == u %}selected{% endif %}>{{ nome|default:u }}</option>{% endfor %}</select></div>
+    <div><label for="f-de">De</label><input id="f-de" type="date" name="de" value="{{ f.de }}"></div>
+    <div><label for="f-ate">Até</label><input id="f-ate" type="date" name="ate" value="{{ f.ate }}"></div>
+    <div class="acoes-f"><button type="submit">{% include "carteira/_icone.html" with nome="buscar" %}Filtrar</button></div>
+  </div>
+  {% if tem_filtro %}<div class="pq-filtros-rodape"><a href="?{{ volta }}">Limpar filtros</a></div>{% endif %}
+</form>
+
+<div class="cd-resumo">
+  <span><strong>{{ pagina.paginator.count|intcomma }}</strong> {% if tipo == "vendas_nf" %}nota{{ pagina.paginator.count|pluralize }}{% elif tipo == "orcamentos" or tipo == "vendas" %}registro{{ pagina.paginator.count|pluralize }}{% else %}empresa{{ pagina.paginator.count|pluralize }}{% endif %}</span>
+  {% if d.com_valor %}<span>{% if d.com_vendido %}Orçado{% else %}Total{% endif %} <strong>R$ {{ d.total|floatformat:"2g" }}</strong></span>{% endif %}
+  {% if d.com_vendido %}<span>Virou venda <strong style="color:#1a7f4b">R$ {{ d.total_vendido|floatformat:"2g" }}</strong></span>{% endif %}
+  <span class="mut peq">{{ f.de_rot }} a {{ f.ate_rot }} · do mais novo para o mais antigo</span>
+</div>
+
+{% if pagina.object_list %}
+<div class="tabela"><table class="is-tabela">
+  <tr><th>Data</th><th>Cliente</th><th>CNPJ</th><th>{% if tipo == "vendas_nf" %}Nota fiscal{% else %}Resultado{% endif %}</th>{% if d.com_valor %}<th class="valor">{% if d.com_vendido %}Orçado{% else %}Valor{% endif %}</th>{% endif %}{% if d.com_vendido %}<th class="valor">Virou venda</th>{% endif %}<th>{% if tipo == "vendas_nf" or tipo == "vendas" %}Quem vendeu{% else %}Quem atendeu{% endif %}</th></tr>
+  {% for x in pagina.object_list %}
+  <tr>
+    <td data-label="Data">{% if x.tem_hora %}{{ x.data|date:"d/m/Y H:i" }}{% else %}{{ x.data|date:"d/m/Y" }}{% endif %}</td>
+    <td data-label="Cliente">{% if simulacao %}<strong>{{ x.cliente }}</strong>{% else %}<a href="{% url 'prospeccao:empresa' x.empresa_id %}"><strong>{{ x.cliente }}</strong></a>{% endif %}
+      {% if x.cidade %}<br><span class="mut peq">{{ x.cidade }}{% if x.uf %}/{{ x.uf }}{% endif %}</span>{% endif %}</td>
+    <td data-label="CNPJ"><span class="cnpj peq">{{ x.cnpj_fmt|default:"—" }}</span></td>
+    <td data-label="{% if tipo == 'vendas_nf' %}Nota fiscal{% else %}Resultado{% endif %}"><span class="peq">{{ x.detalhe }}</span>{% if x.anexo_pk and not simulacao %}<br><a class="peq" href="{% url 'carteira:anexo_orcamento' x.anexo_pk %}" target="_blank" rel="noopener">Ver orçamento anexado</a>{% endif %}</td>
+    {% if d.com_valor %}<td data-label="Valor" class="valor">{% if x.valor is not None %}R$ {{ x.valor|floatformat:"2g" }}{% else %}<span class="mut">—</span>{% endif %}</td>{% endif %}
+    {% if d.com_vendido %}<td data-label="Virou venda" class="valor">{% if x.vendido %}<strong style="color:#1a7f4b">R$ {{ x.vendido|floatformat:"2g" }}</strong><br><span class="mut peq">{{ x.vendas_dias }} venda{{ x.vendas_dias|pluralize }}</span>{% else %}<span class="mut">ainda não</span>{% endif %}</td>{% endif %}
+    <td data-label="Quem"><span class="chip">{% include "carteira/_icone.html" with nome="pessoa" %}{{ x.quem }}</span></td>
+  </tr>{% endfor %}
+</table></div>
+<nav class="pag" aria-label="Paginação">
+  <span class="mut">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+  <span class="acoes">
+    {% if pagina.has_previous %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.previous_page_number %}" rel="prev">← Anterior</a>{% endif %}
+    {% if pagina.has_next %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.next_page_number %}" rel="next">Próxima →</a>{% endif %}
+  </span>
+</nav>
+{% else %}
+<div class="card vazio"><h2>Nada neste período</h2><p>{% if tem_filtro %}Mude ou limpe os filtros.{% else %}Nenhum registro entre {{ f.de_rot }} e {{ f.ate_rot }}.{% endif %}</p></div>
+{% endif %}
+{% endblock %}

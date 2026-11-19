@@ -1,0 +1,20 @@
+{# Campo de formulário padronizado: rótulo associado, obrigatoriedade, ajuda e erro ligados por aria-describedby. #}
+{% with tipo=f.field.widget.input_type multi=f.field.widget.allow_multiple_selected %}
+<div class="form-campo{% if f.errors %} tem-erro{% endif %}{% if tipo == 'checkbox' and not multi %} check{% endif %}{% if largo %} largo{% endif %}" id="campo-{{ f.name }}" data-campo="{{ f.name }}">
+  {% if tipo == "checkbox" and not multi %}
+    <label for="{{ f.id_for_label }}">{{ f }} <span>{{ f.label }}{% if f.field.required %}<span class="obrig">obrigatório</span>{% endif %}</span></label>
+  {% elif tipo == "checkbox" or tipo == "radio" %}
+    <fieldset class="opcoes" style="border:0;padding:0;margin:0" {% if f.help_text or f.errors %}aria-describedby="{% if f.help_text %}ajuda-{{ f.name }}{% endif %} {% if f.errors %}erro-{{ f.name }}{% endif %}"{% endif %}>
+      <legend style="font-weight:600;margin-bottom:6px;color:var(--azul-900);padding:0">{{ f.label }}{% if f.field.required or obrigatorio %}<span class="obrig">obrigatório</span>{% elif nota %}<span class="obrig">{{ nota }}</span>{% else %}<span class="opcional">opcional</span>{% endif %}</legend>
+      {% if f.help_text %}<div class="ajuda" id="ajuda-{{ f.name }}" style="margin:0 0 8px">{{ f.help_text }}</div>{% endif %}
+      {{ f }}
+    </fieldset>
+  {% else %}
+    <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required or obrigatorio %}<span class="obrig">obrigatório</span>{% elif nota %}<span class="obrig">{{ nota }}</span>{% endif %}</label>
+    {{ f }}
+  {% endif %}
+  {% if f.help_text and tipo != "checkbox" and tipo != "radio" %}<div class="ajuda" id="ajuda-{{ f.name }}">{{ f.help_text }}</div>
+  {% elif f.help_text and tipo == "checkbox" and not multi %}<div class="ajuda" id="ajuda-{{ f.name }}">{{ f.help_text }}</div>{% endif %}
+  {% if f.errors %}<ul class="errorlist" id="erro-{{ f.name }}" role="alert">{% for err in f.errors %}<li>{{ err }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endwith %}

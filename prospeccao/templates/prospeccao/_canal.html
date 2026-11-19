@@ -1,0 +1,44 @@
+{% load carteira_tags %}{# parâmetro: c (CanalEmpresa com .alerta/.util), e (empresa) #}
+<li class="contato-item canal" {% if not c.util %}style="opacity:.7"{% endif %}>
+  <div class="contato-valor">
+    {% if c.tipo == "TELEFONE" %}{% include "carteira/_icone.html" with nome="telefone" %}
+      {% if c.util %}<a class="v" href="{{ c.valor|tel_href }}" title="Ligar (não registra abordagem)">{{ c.valor }}</a>{% else %}<span class="v"><s>{{ c.valor }}</s></span>{% endif %}
+    {% elif c.tipo == "EMAIL" %}{% include "carteira/_icone.html" with nome="email" %}
+      {% if c.util %}<a class="v email" href="mailto:{{ c.valor }}" title="Escrever (não registra abordagem)">{{ c.valor }}</a>{% else %}<span class="v email"><s>{{ c.valor }}</s></span>{% endif %}
+    {% else %}{% include "carteira/_icone.html" with nome="site" %}
+      {% with u=c.valor|url_externa %}{% if u and c.util %}<a class="v quebra" href="{{ u }}" target="_blank" rel="noopener noreferrer nofollow">{{ c.valor }}<span class="sr-only"> (abre em nova aba)</span></a>{% else %}<span class="v quebra">{{ c.valor }}</span>{% endif %}{% endwith %}
+    {% endif %}
+    {% if c.tipo != "SITE" and c.util %}<span class="contato-acoes">
+      <button type="button" class="icone-btn" data-copy="{{ c.valor }}" data-copy-rotulo="{% if c.tipo == 'TELEFONE' %}Telefone{% else %}E-mail{% endif %}" aria-label="Copiar {% if c.tipo == 'TELEFONE' %}telefone{% else %}e-mail{% endif %} {{ c.valor }}" title="Copiar">{% include "carteira/_icone.html" with nome="copiar" %}</button>
+      {% if c.whatsapp_explicito %}<a class="icone-btn" href="{{ c.valor|wa_href }}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp publicado pela empresa: {{ c.valor }} (abre em nova aba)">{% include "carteira/_icone.html" with nome="whatsapp" %}<span class="peq">WhatsApp</span></a>{% endif %}
+    </span>{% endif %}
+  </div>
+  <div class="linha">
+    {% nivel_canal c.nivel %}
+    {% if c.preferido %}<span class="tag ok">★ preferido</span>{% endif %}
+    {% if c.restrito %}<span class="tag erro">restrito: {{ c.restricao_motivo }}</span>{% endif %}
+    {% if c.alerta %}<span class="contato-alerta">⚠ {{ c.alerta }}</span>{% endif %}
+    {% if c.classificacao != "INCERTO" %}<span class="mut peq">{{ c.get_classificacao_display }}</span>{% endif %}
+    {% if c.departamento %}<span class="mut peq">Depto.: {{ c.departamento }}</span>{% endif %}
+  </div>
+  {% if c.corroboracoes %}<div class="peq mut">Também em: {% for k in c.corroboracoes %}{% if k.url|slice:":4" == "http" %}<a href="{{ k.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ k.dominio|default:k.fonte }}</a>{% else %}{{ k.dominio|default:k.fonte }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+  <div class="peq mut">Origem: {{ c.get_origem_canal_display }} · {{ c.fonte }}{% if c.referencia|slice:":4" == "http" %} · <a href="{{ c.referencia }}" target="_blank" rel="noopener noreferrer nofollow">ver fonte<span class="sr-only"> (abre em nova aba)</span></a>{% endif %} · coletado em {{ c.coletado_em|date:"d/m/Y" }}{% if c.confirmado_por %} · conferido por {{ c.confirmado_por }} em {{ c.confirmado_em|date:"d/m/Y" }}{% endif %}</div>
+  <details class="peq" style="margin-top:2px">
+    <summary>Atualizar este contato</summary>
+    <form method="post" action="{% url 'prospeccao:canal_acao' c.pk %}" class="form-grade" style="margin-top:8px">{% csrf_token %}
+      <input type="hidden" name="proximo" value="{% url 'prospeccao:empresa' e.pk %}#contatos">
+      <div class="form-campo"><label for="acao-{{ c.pk }}">O que aconteceu</label>
+        <select name="acao" id="acao-{{ c.pk }}">
+          <option value="atendido">Falei por este contato (confirmar)</option>
+          <option value="incorreto">Não é da empresa / incorreto</option>
+          <option value="preferido">{% if c.preferido %}Deixar de usar como preferido{% else %}Usar como preferido{% endif %}</option>
+          {% if c.restrito %}<option value="liberar">Retirar restrição</option>{% else %}<option value="restringir">Restringir uso</option>{% endif %}
+          {% if c.tipo != "SITE" %}<option value="corrigir">Corrigir o valor</option>{% endif %}
+        </select></div>
+      {% if c.tipo != "SITE" %}<div class="form-campo"><label for="valor-{{ c.pk }}">Valor correto <span class="opcional">só para “corrigir”</span></label><input name="valor" id="valor-{{ c.pk }}"></div>{% endif %}
+      <div class="form-campo"><label for="motivo-{{ c.pk }}">Motivo <span class="opcional">opcional</span></label><input name="motivo" id="motivo-{{ c.pk }}"></div>
+      <div class="form-campo largo"><button class="btn sec btn-mini">Salvar atualização</button>
+        <span class="mut peq">Isto não registra abordagem.</span></div>
+    </form>
+  </details>
+</li>

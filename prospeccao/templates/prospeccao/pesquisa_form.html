@@ -1,0 +1,156 @@
+{% extends "carteira/base.html" %}
+{% block title %}{% if obj %}Editar pesquisa{% else %}Nova pesquisa{% endif %}{% endblock %}
+{% block content %}
+<a class="voltar" href="{% if obj %}{% url 'prospeccao:pesquisa_detalhe' obj.pk %}{% else %}{% url 'prospeccao:pesquisas' %}{% endif %}">{% include "carteira/_icone.html" with nome="voltar" %}{% if obj %}Voltar à pesquisa{% else %}Pesquisas{% endif %}</a>
+<header class="pq-cab">
+  <div>
+    <h1>{% if obj %}Editar pesquisa{% else %}Nova pesquisa de leads{% endif %}</h1>
+    <p class="lead">Escolha onde, quem e quantos. Depois de salvar, clique em <strong>Buscar novos leads</strong> na página da pesquisa.</p>
+  </div>
+</header>
+
+<form method="post" id="form-pesquisa" novalidate>{% csrf_token %}
+  <input type="hidden" name="situacoes_ui" value="1">
+  {% if form.errors %}
+  <div class="erro-resumo" role="alert">
+    <h2>Corrija {{ form.errors|length }} ponto{{ form.errors|length|pluralize }} antes de salvar</h2>
+    <ul>
+      {% for err in form.non_field_errors %}<li>{{ err }}</li>{% endfor %}
+      {% for f in form %}{% if f.errors %}<li><a href="#campo-{{ f.name }}">{{ f.label }}: {{ f.errors|join:" " }}</a></li>{% endif %}{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div class="pq-grade">
+    <div class="pq-form-cards">
+      <section class="card" aria-labelledby="t-onde">
+        <div class="pq-card-cab"><h2 id="t-onde"><span class="pq-num" aria-hidden="true">1</span>Onde buscar</h2></div>
+        <div class="pq-campos-2">
+          {% include "prospeccao/_campo.html" with f=form.cidades largo=True %}
+          {% include "prospeccao/_campo.html" with f=form.situacoes_sel %}
+          {% include "prospeccao/_campo.html" with f=form.uf %}
+        </div>
+        {% if form.situacoes_receita.errors %}<ul class="errorlist" id="campo-situacoes_receita">{% for err in form.situacoes_receita.errors %}<li>{{ err }}</li>{% endfor %}</ul>{% endif %}
+      </section>
+
+      <section class="card" aria-labelledby="t-quem">
+        <div class="pq-card-cab"><h2 id="t-quem"><span class="pq-num" aria-hidden="true">2</span>Quem buscar</h2></div>
+        <div class="pq-campos-2">
+          {% include "prospeccao/_campo.html" with f=form.nome largo=True %}
+          {% include "prospeccao/_campo.html" with f=form.frentes %}
+          {% include "prospeccao/_campo.html" with f=form.aplicacoes %}
+        </div>
+        <details class="peq" {% if form.objetivo.errors %}open{% endif %} style="margin-top:4px">
+          <summary>Descrever o objetivo com as minhas palavras <span class="mut">(opcional: se ficar vazio, é montado a partir dos perfis e das cidades)</span></summary>
+          <div style="margin-top:8px">{% include "prospeccao/_campo.html" with f=form.objetivo largo=True %}</div>
+        </details>
+      </section>
+
+      <section class="card" aria-labelledby="t-qtd">
+        <div class="pq-card-cab"><h2 id="t-qtd"><span class="pq-num" aria-hidden="true">3</span>Quantos leads</h2></div>
+        <div class="form-campo{% if form.quantidade_desejada.errors %} tem-erro{% endif %}" id="campo-quantidade_desejada" style="margin:0">
+          <label for="{{ form.quantidade_desejada.id_for_label }}">Leads completos que queremos encontrar</label>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+            <div class="segmentado" role="group" aria-label="Quantidades rápidas">
+              <button type="button" data-qtd="10">10</button><button type="button" data-qtd="25">25</button>
+              <button type="button" data-qtd="50">50</button><button type="button" data-qtd="100">100</button>
+            </div>
+            <span class="mut peq">ou</span>
+            <div style="width:110px">{{ form.quantidade_desejada }}</div>
+          </div>
+          {% if form.quantidade_desejada.errors %}<ul class="errorlist" role="alert">{% for err in form.quantidade_desejada.errors %}<li>{{ err }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+        <p class="pq-nota">De 1 a 100, para a pesquisa inteira. Lead completo = CNPJ ativo, fora da carteira Salesforce e com contato.</p>
+      </section>
+
+      <details class="pq-mais" {% if form.erro_avancado or form.fontes.errors or form.modo.errors or form.termos_busca.errors %}open{% endif %}>
+        <summary>Mais opções <span class="mut">— forma de busca, fontes, limites, critérios e exclusões</span>
+          {% if form.erro_avancado or form.fontes.errors %}<span class="tag erro">com erro</span>{% endif %}</summary>
+        <div class="corpo pq-campos-2">
+          {% include "prospeccao/_campo.html" with f=form.modo largo=True %}
+          {% include "prospeccao/_campo.html" with f=form.fontes %}
+          {% include "prospeccao/_campo.html" with f=form.termos_busca %}
+          {% include "prospeccao/_campo.html" with f=form.limite_resultados %}
+          {% include "prospeccao/_campo.html" with f=form.max_duracao_segundos %}
+          {% include "prospeccao/_campo.html" with f=form.teto_custo_usd %}
+          {% include "prospeccao/_campo.html" with f=form.criterios_obrigatorios %}
+          {% include "prospeccao/_campo.html" with f=form.preferencias %}
+          {% include "prospeccao/_campo.html" with f=form.permitir_exploratoria largo=True %}
+          {% include "prospeccao/_campo.html" with f=form.idade_min_anos %}
+          {% include "prospeccao/_campo.html" with f=form.idade_max_anos %}
+          {% include "prospeccao/_campo.html" with f=form.idade_desconhecida largo=True %}
+          {% for f in form.avancados %}{% include "prospeccao/_campo.html" %}{% endfor %}
+        </div>
+      </details>
+    </div>
+
+    <aside class="pq-lateral" aria-label="Resumo">
+      <section class="card" aria-labelledby="t-resumo">
+        <div class="pq-card-cab"><h2 id="t-resumo">Resumo</h2></div>
+        <p class="pq-frase" id="frase-busca" aria-live="polite">Escolha os municípios, os perfis e a quantidade.</p>
+        <dl class="pq-lista-def" id="resumo">
+          <dt>Onde</dt><dd data-r="regiao">—</dd>
+          <dt>Perfis</dt><dd data-r="frentes">—</dd>
+          <dt>Produtos</dt><dd data-r="aplicacoes">—</dd>
+          <dt>Situação</dt><dd data-r="situacoes">—</dd>
+          <dt>Quantidade</dt><dd data-r="quantidade">—</dd>
+        </dl>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
+          <button type="submit" class="btn-grande">{% include "carteira/_icone.html" with nome="ok" %}Salvar pesquisa</button>
+          <a class="btn ghost" style="text-align:center" href="{% if obj %}{% url 'prospeccao:pesquisa_detalhe' obj.pk %}{% else %}{% url 'prospeccao:pesquisas' %}{% endif %}">Cancelar</a>
+        </div>
+        <p class="pq-nota">Salvar não inicia a busca. Chamadas pagas só acontecem dentro do orçamento já autorizado
+          ({% if obj and orc.teto is not None %}US$ {{ orc.teto }} nesta pesquisa{% elif orc.teto_global is not None %}saldo global de US$ {{ orc.teto_global }}{% else %}nenhum orçamento de IA definido{% endif %}).</p>
+      </section>
+    </aside>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var form = document.getElementById("form-pesquisa");
+  if (!form) return;
+  function val(nome) { var el = form.elements[nome]; return el && typeof el.value === "string" ? el.value.trim() : ""; }
+  function marcados(nome) {
+    return Array.prototype.filter.call(form.querySelectorAll('input[name="' + nome + '"]'), function (i) { return i.checked; })
+      .map(function (i) { var l = i.closest("label"); return l ? l.textContent.trim() : i.value; });
+  }
+  function resumir(lista, max) { return lista.length > max ? lista.slice(0, max).join(", ") + " e mais " + (lista.length - max) : lista.join(", "); }
+  function poe(chave, texto, vazio) {
+    var dd = form.querySelector('[data-r="' + chave + '"]');
+    if (!dd) return;
+    dd.textContent = texto || vazio || "—";
+    dd.classList.toggle("mut", !texto);
+  }
+  function atualiza() {
+    var cid = marcados("cidades"), fr = marcados("frentes"), apl = marcados("aplicacoes");
+    poe("regiao", cid.length ? resumir(cid, 4) + " / " + (val("uf") || "?").toUpperCase() : "", "escolha ao menos um município");
+    poe("frentes", resumir(fr, 3), "escolha ao menos um perfil");
+    poe("aplicacoes", apl.length ? apl.length + " selecionado" + (apl.length > 1 ? "s" : "") : "", "todos");
+    poe("situacoes", marcados("situacoes_sel").join(", ") || "Ativa (padrão)");
+    var qtd = val("quantidade_desejada") || (form.elements["quantidade_desejada"] && form.elements["quantidade_desejada"].placeholder);
+    poe("quantidade", qtd ? qtd + " leads completos" : "");
+    Array.prototype.forEach.call(form.querySelectorAll("[data-qtd]"), function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-qtd") === String(qtd) ? "true" : "false");
+    });
+    var frase = document.getElementById("frase-busca");
+    if (frase) {
+      frase.textContent = (qtd && cid.length)
+        ? ("Buscar " + qtd + " leads" + (fr.length ? " de " + resumir(fr, 2).toLowerCase() : "") + " em " + resumir(cid, 3) + ".")
+        : "Escolha os municípios, os perfis e a quantidade.";
+    }
+  }
+  form.addEventListener("input", atualiza);
+  form.addEventListener("change", atualiza);
+  Array.prototype.forEach.call(form.querySelectorAll("[data-qtd]"), function (b) {
+    b.addEventListener("click", function () {
+      var el = form.elements["quantidade_desejada"];
+      if (el) { el.value = b.getAttribute("data-qtd"); atualiza(); }
+    });
+  });
+  document.addEventListener("click", function () { setTimeout(atualiza, 0); });
+  atualiza();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "carteira/base.html" %}
+{% block title %}Histórico e listas de abordagem{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Histórico e listas de abordagem</h1>
+    <p class="lead">Listas geradas a partir da <a href="{% url 'carteira:novas_abordagens' %}">Reativação</a>. Estar numa lista não significa ter sido contatado; a situação de contato é sempre a atual.</p>
+  </div>
+  <div class="acoes"><a class="btn sec" href="{% url 'carteira:novas_abordagens' %}">Gerar nova lista</a></div>
+</div>
+{% if listas %}
+<div class="tabela"><table>
+  <tr><th>Lista</th><th>Criada em</th><th>Por</th><th>Empresas</th><th>Exportar</th></tr>
+  {% for l in listas %}
+  <tr><td><a href="{% url 'carteira:lista_detalhe' l.pk %}"><strong>{{ l.nome }}</strong></a></td><td>{{ l.criada_em|date:"d/m/Y H:i" }}</td><td>{{ l.criada_por }}</td><td>{{ l.n }}</td>
+    <td><a class="btn sec btn-mini" href="{% url 'carteira:lista_csv' l.pk %}">CSV<span class="sr-only"> da lista {{ l.nome }}</span></a></td></tr>
+  {% endfor %}
+</table></div>
+{% else %}
+<div class="card vazio"><h2>Nenhuma lista criada</h2><p>Na Reativação, filtre as empresas e use “Gerar lista de abordagem”.</p>
+  <div class="acoes"><a class="btn" href="{% url 'carteira:novas_abordagens' %}">Ir para Reativação</a></div></div>
+{% endif %}
+{% endblock %}

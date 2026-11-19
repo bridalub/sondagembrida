@@ -1,0 +1,38 @@
+{% extends "carteira/base.html" %}
+{% load humanize %}
+{% block title %}Base Receita{% endblock %}
+{% block content %}
+<h1>Base pública de CNPJ (Receita Federal)</h1>
+<p class="mut">Base externa, separada da carteira. Estar aqui não significa ser cliente nem oportunidade aprovada.
+Dados de uma competência mensal: <strong>não é consulta em tempo real</strong>. Telefones e e-mails são cadastrais (podem ser do contador) e não foram validados.</p>
+
+<div class="card"><h2>Cargas</h2>
+<div class="tabela"><table><tr><th>#</th><th>Competência</th><th>Publicação</th><th>Recorte</th><th>Status</th><th>Ativa</th><th>Estabelecimentos</th><th>Linhas lidas</th><th>Arquivos</th><th>Mensagem</th></tr>
+{% for c in cargas %}<tr><td>{{ c.pk }}</td><td>{{ c.competencia }}</td><td>{{ c.data_arquivos|date:"d/m/Y"|default:"—" }}</td><td>{{ c.descricao_filtro }}</td>
+<td><span class="tag {% if c.status == 'CONCLUIDA' %}CONCLUIDA{% elif c.status == 'EXECUTANDO' %}EXECUTANDO{% else %}PARCIAL{% endif %}">{{ c.get_status_display }}</span>{% if c.etapa %}<br><span class="mut">{{ c.etapa }}</span>{% endif %}</td>
+<td>{{ c.ativa|yesno:"sim,não" }}</td><td>{{ c.estabelecimentos|intcomma }}</td><td>{{ c.linhas_lidas|intcomma }}</td>
+<td>{% for a in c.arquivos.all %}<span class="tag {% if a.status == 'CONCLUIDO' %}CONCLUIDA{% elif a.status == 'FALHA' %}FALHA{% else %}PENDENTE{% endif %}" title="{{ a.linhas_lidas|intcomma }} lidas / {{ a.linhas_gravadas|intcomma }} gravadas {{ a.erro }}">{{ a.nome|cut:".zip" }}</span> {% endfor %}</td>
+<td class="mut">{{ c.mensagem|truncatechars:120 }}</td></tr>
+{% empty %}<tr><td colspan="10" class="mut">Nenhuma carga. Rode <code>python manage.py importar_receita --competencia AAAA-MM --uf SP --municipio GUARULHOS</code>.</td></tr>{% endfor %}
+</table></div></div>
+
+<div class="card"><form method="get" class="filtros"><div><label>UF</label><input name="uf" value="{{ uf }}"></div>
+<div><label>Municípios (vírgula)</label><input name="cidades" value="{{ cidades }}"></div><div><button>Ver panorama</button></div></form></div>
+{% if p %}
+<div class="card"><h2>Panorama – {{ cidades }}/{{ uf }} · competência {{ p.carga.competencia }}{% if p.carga.data_arquivos %} (arquivos de {{ p.carga.data_arquivos|date:"d/m/Y" }}){% endif %}</h2>
+<div class="grid">
+  <div class="card kpi"><div class="n">{{ p.total|intcomma }}</div><div class="l">Estabelecimentos no recorte (todas as situações)</div></div>
+  <div class="card kpi"><div class="n">{{ p.r.ativos|default:0|intcomma }}</div><div class="l">Ativos</div></div>
+  <div class="card kpi"><div class="n">{{ p.r.carteira|default:0|intcomma }}</div><div class="l">Ativos já na carteira BRIDA</div></div>
+  <div class="card kpi"><div class="n">{{ p.r.bloqueadas|default:0|intcomma }}</div><div class="l">Ativos bloqueados na carteira</div></div>
+  <div class="card kpi"><div class="n">{{ p.r.leads|default:0|intcomma }}</div><div class="l">Ativos que são leads BRIDA</div></div>
+  <div class="card kpi"><div class="n">{{ p.r.externas|default:0|intcomma }}</div><div class="l">Ativos externos (não conhecidos)</div></div>
+  <div class="card kpi"><div class="n">{{ p.r.externas_tel|default:0|intcomma }}</div><div class="l">Externos com telefone cadastral</div></div>
+  <div class="card kpi"><div class="n">{{ p.r.externas_email|default:0|intcomma }}</div><div class="l">Externos com e-mail cadastral ({{ p.r.externas_email_dominio_proprio|default:0|intcomma }} com domínio próprio)</div></div>
+</div>
+<div class="duas"><div><h2>Por situação cadastral</h2><table>{% for k, v in p.por_situacao.items %}<tr><td>{{ k|default:"(não informada)" }}</td><td>{{ v|intcomma }}</td></tr>{% endfor %}</table>
+{% if p.conhecidos_nao_ativos %}<p class="mut">Contas da carteira com CNPJ não ativo na Receita: {% for k, v in p.conhecidos_nao_ativos.items %}{{ k }}: {{ v }} {% endfor %}</p>{% endif %}</div>
+<div><h2>Atividades mais frequentes (ativos)</h2><table>{% for cod, desc, n in p.cnae_top %}<tr><td>{{ cod }}</td><td>{{ desc|truncatechars:60 }}</td><td>{{ n|intcomma }}</td></tr>{% endfor %}</table></div></div>
+</div>
+{% elif cargas %}<p class="mut">Nenhuma carga ativa concluída ainda.</p>{% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "carteira/base.html" %}
+{% block title %}Importações{% endblock %}
+{% block content %}
+<h1>Importações</h1>
+<p><a href="{% url 'carteira:revisao' %}">{{ revisao }} empresa(s) precisam de revisão cadastral</a></p>
+<div class="tabela"><table>
+  <tr><th>Início</th><th>Tipo</th><th>Origem</th><th>Status</th><th>Lidos</th><th>Criados</th><th>Atualizados</th><th>Inalterados</th><th>Rejeitados</th><th>Inconsistentes</th></tr>
+  {% for i in importacoes %}
+  <tr><td><a href="{% url 'carteira:importacao_detalhe' i.pk %}">{{ i.iniciado_em|date:"d/m/Y H:i" }}</a></td><td>{{ i.get_tipo_display }}</td><td>{{ i.origem }}</td>
+    <td><span class="tag {{ i.status }}">{{ i.get_status_display }}</span></td><td>{{ i.lidos }}</td><td>{{ i.criados }}</td><td>{{ i.atualizados }}</td>
+    <td>{{ i.inalterados }}</td><td>{{ i.rejeitados }}</td><td>{{ i.inconsistentes }}</td></tr>
+  {% empty %}<tr><td colspan="10" class="mut">Nenhuma importação. Rode <code>python manage.py sync_salesforce</code>.</td></tr>{% endfor %}
+</table></div>
+<p class="mut">Contas criadas + atualizadas + inalteradas = registros processados. "Inconsistentes" são registros importados que precisam de revisão (ex.: sem CNPJ válido, CNPJ duplicado).</p>
+{% endblock %}

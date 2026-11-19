@@ -1,0 +1,114 @@
+{% extends "carteira/base.html" %}
+{% load carteira_tags %}
+{% block title %}{{ e.nome }}{% endblock %}
+{% block content %}
+<a class="voltar" href="{% url 'carteira:empresas' %}">{% include "carteira/_icone.html" with nome="voltar" %}Clientes cadastrados</a>
+<div class="page-head">
+  <div>
+    <h1>{{ e.nome }}</h1>
+    <div class="acoes" style="gap:6px">
+      {% if e.cnpj %}<span class="cnpj">{{ e.cnpj_formatado }}</span> <button type="button" class="icone-btn" style="min-height:32px" data-copy="{{ e.cnpj_formatado }}" data-copy-rotulo="CNPJ" aria-label="Copiar CNPJ">{% include "carteira/_icone.html" with nome="copiar" %}</button>{% endif %}
+      <span class="tag {{ e.situacao_compra }}">{{ e.situacao_compra|rotulo:rot_compra }}</span>
+      <span class="tag {{ e.situacao_contato }}">{{ e.situacao_contato|rotulo:rot_contato }}</span>
+      {% if e.requer_revisao %}<span class="tag INCONSISTENTE">Revisar: {{ e.motivo_revisao }}</span>{% endif %}
+      {% if e.bloqueada_origem %}<span class="tag NAO_CONTATAR">Bloqueada no Protheus/Salesforce</span>{% endif %}
+    </div>
+  </div>
+  <div class="acoes">
+    <a class="btn sec" href="{% url 'prospeccao:empresa' e.pk %}">Contatos, fontes e evidências</a>
+    {% if not e.nao_contatar %}<a class="btn" href="{% url 'carteira:registrar_abordagem' e.pk %}?proximo={% url 'carteira:empresa_detalhe' e.pk %}">{% include "carteira/_icone.html" with nome="registrar" %}Registrar abordagem</a>{% endif %}
+  </div>
+</div>
+{% if e.nao_contatar %}
+<div class="faixa alerta">
+  <strong>Não contatar</strong> desde {{ e.nao_contatar_em|date:"d/m/Y H:i" }}{% if e.nao_contatar_por %} por {{ e.nao_contatar_por }}{% endif %}: {{ e.nao_contatar_motivo }}
+  <form method="post" action="{% url 'carteira:nao_contatar' e.pk %}" style="display:inline">{% csrf_token %}
+    {% if eh_adm %}<input type="hidden" name="acao" value="liberar"><button class="btn sec btn-mini">Liberar para contato</button>{% endif %}</form>
+</div>
+{% endif %}
+
+<div class="duas">
+  <div class="card">
+    <h2>Cadastro</h2>
+    <dl class="dados">
+      <dt>CNPJ</dt><dd>{% if e.cnpj %}{{ e.cnpj_formatado }} ({{ e.tipo_estabelecimento }}){% else %}<span class="tag REJEITADO">{{ e.get_cnpj_status_display }}</span> origem: "{{ e.cnpj_origem }}"{% endif %}</dd>
+      <dt>Razão social</dt><dd>{{ e.razao_social|nd }}</dd>
+      <dt>Nome fantasia</dt><dd>{{ e.nome_fantasia|nd }}</dd>
+      <dt>Código cliente</dt><dd>{{ e.codigo_cliente|nd }}</dd>
+      <dt>Segmento comercial</dt><dd>{{ e.segmento|nd }}{% if e.subsegmento %} / {{ e.subsegmento }}{% endif %}</dd>
+      <dt>Ramo</dt><dd>{{ e.ramo|nd }}</dd>
+      <dt>CNAE</dt><dd>{{ e.cnae|nd }}</dd>
+      <dt>IMBP</dt><dd>{{ e.imbp|nd }}</dd>
+      <dt>Consumo/Indústria</dt><dd>{{ e.classificacao_consumo|nd }}</dd>
+      <dt>Granel</dt><dd>{% if e.granel is None %}{{ ""|nd }}{% else %}{{ e.granel|yesno:"Sim,Não" }}{% endif %}</dd>
+      <dt>Cidade/UF</dt><dd>{{ e.cidade|nd }} / {{ e.uf|nd }} {% if e.cep %}<span class="mut">CEP {{ e.cep }}</span>{% endif %}</dd>
+      <dt>Entrega</dt><dd>{{ e.cidade_entrega|default:"—" }} / {{ e.uf_entrega|default:"—" }}</dd>
+      <dt>Região</dt><dd>{{ e.regiao|nd }}</dd>
+      <dt>Data de abertura</dt><dd>{% if e.data_abertura %}{{ e.data_abertura|date:"d/m/Y" }} ({{ e.tempo_empresa_anos }} anos){% else %}{{ ""|nd }}{% endif %}</dd>
+      <dt>Telefone</dt><dd>{{ e.telefone|nd }}</dd>
+      <dt>E-mail comercial</dt><dd>{{ e.email|nd }}</dd>
+      <dt>Vendedor</dt><dd>{{ e.vendedor|nd }}</dd>
+      <dt>Coordenador</dt><dd>{{ e.coordenador|nd }}</dd>
+      <dt>Situação Protheus</dt><dd>{{ e.situacao_protheus|nd }}</dd>
+      <dt>Cadastro no Salesforce</dt><dd>{{ e.data_cadastro_origem|date:"d/m/Y"|default:"—" }} <span class="mut">(não é tempo de empresa nem de cliente)</span></dd>
+      <dt>Última sincronização</dt><dd>{{ e.ultima_sincronizacao_em|date:"d/m/Y H:i"|default:"—" }}
+        {% if e.ultima_importacao_id and eh_adm %}<a href="{% url 'carteira:importacao_detalhe' e.ultima_importacao_id %}">(importação)</a>{% endif %}</dd>
+      <dt>Origem</dt><dd>{% for r in registros %}{{ r.objeto }} {{ r.id_origem }}{% if r.principal %} (principal){% endif %}<br>{% empty %}{{ e.get_origem_display }}{% endfor %}</dd>
+    </dl>
+    {% if mesma_raiz %}<h2>Outros estabelecimentos (mesma raiz de CNPJ)</h2>
+      {% for o in mesma_raiz %}<a href="{% url 'carteira:empresa_detalhe' o.pk %}">{{ o.nome }}</a> – {{ o.cnpj_formatado }} ({{ o.tipo_estabelecimento }})<br>{% endfor %}{% endif %}
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Indicadores de compra</h2>
+      {% if indicador %}
+      <dl class="dados">
+        <dt>Cobertura</dt><dd>{% if indicador.cobertura_inicio %}{{ indicador.cobertura_inicio|date:"d/m/Y" }} a {{ indicador.cobertura_fim|date:"d/m/Y" }}{% else %}{{ ""|nd }}{% endif %}</dd>
+        <dt>Compras (notas de venda)</dt><dd>{{ indicador.qtd_compras }}</dd>
+        <dt>Primeira / última</dt><dd>{{ indicador.primeira_compra|date:"d/m/Y"|default:"—" }} / {{ indicador.ultima_compra|date:"d/m/Y"|default:"—" }}
+          {% if limite_inatividade and indicador.ultima_compra and indicador.ultima_compra < limite_inatividade %}<span class="tag atrasado">inativo</span>{% endif %}</dd>
+        <dt>Valor acumulado</dt><dd>{{ indicador.valor_compras|brl }}</dd>
+        <dt>Devoluções</dt><dd>{{ indicador.qtd_devolucoes }} ({{ indicador.valor_devolvido|brl }})</dd>
+      </dl>
+      {% if categorias %}<h2>Tipos de produto comprados</h2>
+        <table class="simples peq">{% for c in categorias %}<tr><td>{{ c.categoria }}</td><td>{{ c.qtd_notas }} nota(s)</td><td>{{ c.valor|brl }}</td></tr>{% endfor %}</table>{% endif %}
+      {% else %}<p class="mut">Indicadores ainda não calculados.</p>{% endif %}
+      {% if notas %}<details><summary>Notas fiscais (rastreabilidade, até 30)</summary>
+        <div style="overflow-x:auto"><table class="simples peq">{% for n in notas %}<tr><td>{{ n.numero }}</td><td>{{ n.get_tipo_display }}</td><td>{{ n.data_emissao|date:"d/m/Y" }}</td><td style="white-space:nowrap">{{ n.valor_total|brl }}</td>
+          <td>{% if not n.presente_na_origem %}<span class="tag REJEITADO">não veio mais na origem</span>{% endif %}</td></tr>{% endfor %}</table></div></details>{% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Pessoas de contato</h2>
+      {% for c in contatos %}<div class="contato-item"><strong>{{ c.nome }}</strong>{% if not c.ativo %} <span class="mut">(inativo)</span>{% endif %}{% if c.cargo %} <span class="mut">· {{ c.cargo }}</span>{% endif %}
+        <div class="peq">{% if c.telefone %}<a href="{{ c.telefone|tel_href }}">{{ c.telefone }}</a>{% endif %}{% if c.email %} · <a class="email" href="mailto:{{ c.email }}">{{ c.email }}</a>{% endif %}{% if not c.telefone and not c.email %}<span class="nd">sem telefone e e-mail</span>{% endif %}</div></div>
+      {% empty %}<p class="mut">Nenhuma pessoa cadastrada. A automação atual não traz contatos do cliente.</p>{% endfor %}
+      <details style="margin-top:8px"><summary>Adicionar pessoa</summary>
+        <form method="post" action="{% url 'carteira:adicionar_contato' e.pk %}" style="margin-top:8px">{% csrf_token %}
+          {% for f in contato_form %}{% include "prospeccao/_campo.html" %}{% endfor %}
+          <button>Salvar pessoa</button></form></details>
+    </div>
+
+    {% if not e.nao_contatar %}
+    <div class="card"><details><summary>Marcar como "não contatar"</summary>
+      <form method="post" action="{% url 'carteira:nao_contatar' e.pk %}" style="margin-top:8px">{% csrf_token %}
+        {% include "prospeccao/_campo.html" with f=nao_contatar_form.motivo %}<button class="btn perigo">Marcar como não contatar</button></form></details></div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Histórico de abordagens</h2>
+  <div class="tabela"><table>
+    <tr><th>Data/hora</th><th>Usuário</th><th>Pessoa</th><th>Canal</th><th>Resultado</th><th>Observações</th><th>Próxima ação / retorno</th></tr>
+    {% for a in abordagens %}
+    <tr><td>{{ a.data_hora|date:"d/m/Y H:i" }}</td><td>{{ a.usuario }}</td><td>{{ a.contato.nome|default:"—" }}</td><td>{{ a.get_canal_display }}</td>
+      <td><span class="tag {% if a.houve_conversa %}CONVERSA_REALIZADA{% else %}TENTATIVA_SEM_RESPOSTA{% endif %}">{{ a.get_resultado_display }}</span></td>
+      <td>{{ a.observacoes|linebreaksbr }}</td>
+      <td>{{ a.proxima_acao }}{% if a.data_retorno %}<br>{{ a.data_retorno|date:"d/m/Y" }}
+        {% if a.retorno_concluido %}<span class="mut">(concluído)</span>{% elif a.retorno_atrasado %}<span class="tag atrasado">atrasado</span>{% else %}<span class="tag RETORNO_AGENDADO">pendente</span>{% endif %}{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="7" class="mut">Nenhuma abordagem registrada.</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

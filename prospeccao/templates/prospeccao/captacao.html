@@ -1,0 +1,272 @@
+{% extends "carteira/base.html" %}
+{% load humanize %}
+{% block title %}Painel de captação{% endblock %}
+{% block content %}
+{% include "prospeccao/_marca_painel.html" %}
+<style>
+.bi { --s1: #21275A; --s2: #EE662F; --neutro: #c6cad8; --grade: #e8eaf1; --ink: var(--tx); --ink2: var(--mut); }
+.bi-cab { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; margin: 4px 0 16px; }
+.bi-cab h1 { margin: 0 0 4px; font-size: 1.55rem; }
+.bi-filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bi-mes { display: inline-flex; align-items: center; border: 1px solid var(--bd-forte); border-radius: 10px; background: #fff; overflow: hidden; }
+.bi-mes a { padding: 9px 12px; text-decoration: none; color: var(--azul); font-weight: 800; }
+.bi-mes a:hover { background: var(--azul-50); }
+.bi-mes span { padding: 9px 14px; font-weight: 700; color: var(--azul-900); border-left: 1px solid var(--bd); border-right: 1px solid var(--bd); min-width: 170px; text-align: center; }
+.bi-mes .off { color: var(--bd-forte); pointer-events: none; }
+.bi-filtros select { min-height: 42px; width: auto; min-width: 190px; max-width: 260px; }
+.bi-kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 175px), 1fr)); margin-bottom: 16px; }
+@media (min-width: 1100px) { .bi-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }  /* 8 cartões: 2 linhas de 4 */
+.bi-kpi { background: #fff; border: 1px solid var(--bd); border-radius: var(--raio); padding: 14px 16px; box-shadow: var(--sombra); }
+.bi-kpi .t { font-size: 13px; font-weight: 650; color: var(--ink2); }
+.bi-kpi .n { display: block; font-size: 1.85rem; font-weight: 800; color: var(--azul-900); line-height: 1.15; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.bi-kpi .d { font-size: 12.5px; color: var(--ink2); }
+.bi-kpi.forte { border-top: 4px solid var(--laranja); }
+a.bi-kpi { display: block; text-decoration: none; color: inherit; transition: border-color .15s, box-shadow .15s, transform .15s; }
+a.bi-kpi:hover, a.bi-kpi:focus-visible { border-color: var(--azul); box-shadow: 0 6px 18px rgba(20, 40, 90, .12); transform: translateY(-1px); }
+a.bi-kpi .ver { display: block; margin-top: 6px; font-size: 12.5px; font-weight: 700; color: var(--azul); opacity: .75; }
+a.bi-kpi:hover .ver { opacity: 1; }
+.bi-kpi .n.moeda { font-size: 1.45rem; white-space: nowrap; }
+.bi-grade { display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.bi-card { background: #fff; border: 1px solid var(--bd); border-radius: var(--raio); padding: 16px 18px; box-shadow: var(--sombra); min-width: 0; }
+.bi-card h2 { font-size: 1.02rem; margin: 0; display: flex; align-items: center; gap: 10px; color: #21275A; }
+.bi-card h2::before { content: ""; flex: 0 0 4px; height: 18px; border-radius: 2px; background: #EE662F; }
+.bi-card { border-radius: 12px; }
+.bi-card .sub { padding-left: 14px; }
+.bi-card .sub { font-size: 12.5px; color: var(--ink2); margin: 2px 0 10px; }
+.c8 { grid-column: span 8; } .c4 { grid-column: span 4; } .c6 { grid-column: span 6; }
+.bi-legenda { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink); margin: 0 0 6px; }
+.bi-legenda i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.bi-graf { position: relative; width: 100%; }
+.bi-graf svg { display: block; width: 100%; height: auto; overflow: visible; }
+.bi-graf text { font-family: inherit; }
+.bi-dica { position: fixed; z-index: 60; pointer-events: none; background: var(--azul-900); color: #fff; padding: 8px 10px; border-radius: 8px;
+  font-size: 12.5px; line-height: 1.4; box-shadow: 0 6px 20px rgba(0,0,0,.18); max-width: 260px; display: none; }
+.bi-dica b { font-weight: 700; }
+.bi-tabela { margin-top: 10px; font-size: 13px; }
+.bi-tabela summary { cursor: pointer; color: var(--azul); font-weight: 600; }
+.bi-tabela table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.bi-tabela th, .bi-tabela td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--bd); }
+.bi-tabela td.n, .bi-tabela th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.bi-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.bi-rank li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
+.bi-rank .pos { font-weight: 800; color: var(--ink2); font-size: 13px; text-align: center; }
+.bi-rank li:first-child .pos { color: var(--laranja-texto); }
+.bi-rank li:first-child .trilho span { background: linear-gradient(90deg, #EE662F, #f6a04d); }
+.bi-rank .nome { font-weight: 650; color: var(--azul-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bi-rank .val { font-weight: 750; font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
+.bi-rank .val small { display: block; font-weight: 500; color: var(--ink2); font-size: 12px; }
+.bi-rank .trilho { grid-column: 2 / 4; height: 8px; border-radius: 999px; background: var(--grade); overflow: hidden; }
+.bi-rank .trilho span { display: block; height: 100%; border-radius: 999px; background: var(--s1); }
+.bi-vazio { color: var(--ink2); font-size: 13.5px; padding: 18px 0; text-align: center; }
+@media (max-width: 1100px) { .c8, .c4, .c6 { grid-column: 1 / -1; } }
+@media (max-width: 600px) { .bi-filtros, .bi-filtros select, .bi-mes { width: 100%; max-width: none; } .bi-mes span { flex: 1; } }
+</style>
+
+<div class="bi">
+<header class="bi-cab mk-hero">
+  <span class="mk-filete" aria-hidden="true"></span>
+  <div>
+    <div class="mk-selo">Inteligência comercial · Brida</div>
+    <h1>Painel de captação</h1>
+    <p class="lead">Como está a prospecção de <b>novos clientes</b>: quem foi procurado, quem conversou, orçamentos e vendas.</p>
+  </div>
+  <form method="get" class="bi-filtros" aria-label="Filtros do painel">
+    <div class="bi-mes" role="group" aria-label="Mês">
+      <a href="?mes={{ mes_anterior }}{% if extra %}&amp;{{ extra }}{% endif %}" aria-label="Mês anterior">‹</a>
+      <span>{{ mes_rotulo }}</span>
+      {% if mes_seguinte %}<a href="?mes={{ mes_seguinte }}{% if extra %}&amp;{{ extra }}{% endif %}" aria-label="Mês seguinte">›</a>{% else %}<a class="off" aria-hidden="true">›</a>{% endif %}
+    </div>
+    <input type="hidden" name="mes" value="{{ mes }}">
+    <label class="sr-only" for="f-pesquisa">Pesquisa</label>
+    <select id="f-pesquisa" name="pesquisa" onchange="this.form.submit()"><option value="">Todas as pesquisas</option>
+      {% for p in pesquisas %}<option value="{{ p.pk }}" {% if f.pesquisa == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nome }}</option>{% endfor %}</select>
+    <label class="sr-only" for="f-vendedor">Vendedor</label>
+    <select id="f-vendedor" name="vendedor" onchange="this.form.submit()"><option value="">Toda a equipe</option>
+      {% for u, nome in vendedores %}<option value="{{ u }}" {% if f.vendedor == u %}selected{% endif %}>{{ nome|default:u }}</option>{% endfor %}</select>
+    {% if simulacao %}<input type="hidden" name="simulacao" value="1">{% endif %}
+    <noscript><button type="submit">Aplicar</button></noscript>
+    {% if simulacao %}<a class="btn sec" href="?mes={{ mes }}">Sair da simulação</a>
+    {% else %}<a class="btn sec" href="?mes={{ mes }}&amp;simulacao=1" title="Mostra o painel com dados fictícios; nada é gravado">Ver simulação</a>{% endif %}
+  </form>
+</header>
+
+{% if simulacao %}<div class="faixa aviso" role="status" style="margin-bottom:14px"><strong>Simulação.</strong> Dados fictícios
+  (equipe Carla, Diego, Elisa e Fábio, contatos e notas inventados) para mostrar como o painel fica. Nada foi gravado.</div>{% endif %}
+<section class="bi-kpis" aria-label="Resumo do mês">
+  {% with q="?mes="|add:mes %}
+  <a class="mk-kpi bi-kpi" href="{% url 'prospeccao:captacao_detalhe' 'abordados' %}{{ q }}{% if extra %}&amp;{{ extra }}{% endif %}" title="Ver quais empresas foram abordadas"><span class="t">Empresas abordadas</span><span class="n">{{ k.abordados|intcomma }}</span><span class="d">{{ k.contatos|intcomma }} contato{{ k.contatos|pluralize }} registrado{{ k.contatos|pluralize }}</span><span class="ver">Ver lista →</span></a>
+  <a class="mk-kpi bi-kpi" href="{% url 'prospeccao:captacao_detalhe' 'conversaram' %}{{ q }}{% if extra %}&amp;{{ extra }}{% endif %}" title="Ver quem conversou"><span class="t">Conversaram</span><span class="n">{{ k.conversaram|intcomma }}</span><span class="d">{{ k.taxa_conversa }}% das abordadas</span><span class="ver">Ver lista →</span></a>
+  <a class="mk-kpi bi-kpi" href="{% url 'prospeccao:captacao_detalhe' 'sem_resposta' %}{{ q }}{% if extra %}&amp;{{ extra }}{% endif %}" title="Ver quem não respondeu"><span class="t">Sem resposta</span><span class="n">{{ k.sem_resposta|intcomma }}</span><span class="d">Só tentativas no mês</span><span class="ver">Ver lista →</span></a>
+  <a class="mk-kpi bi-kpi" href="{% url 'prospeccao:captacao_detalhe' 'orcamentos' %}{{ q }}{% if extra %}&amp;{{ extra }}{% endif %}" title="Ver os orçamentos"><span class="t">Orçamentos</span><span class="n">{{ k.orcamentos|intcomma }}</span><span class="d">R$ {{ k.valor_orcamentos|floatformat:"2g" }} orçados</span><span class="ver">Ver lista →</span></a>
+  {% with c=k.conv_orc %}
+  <a class="mk-kpi bi-kpi" href="{% url 'prospeccao:captacao_detalhe' 'orcamentos_convertidos' %}{{ q }}{% if extra %}&amp;{{ extra }}{% endif %}" title="Orçamentos do mês cujo cliente comprou depois: valor orçado e valor vendido"><span class="t">Orçamentos que viraram venda</span><span class="n">{{ c.taxa }}%</span><span class="d">{{ c.leads_convertidos }} de {{ c.leads }} cliente{{ c.leads|pluralize }} orçado{{ c.leads|pluralize }} · R$ {{ c.valor_vendido|floatformat:"2g" }} vendidos{% if c.sem_orcamento_clientes %} · <span title="Vendas do mês sem orçamento registrado antes da compra">{{ c.sem_orcamento_clientes }} venda{{ c.sem_orcamento_clientes|pluralize }} sem orçamento</span>{% endif %}</span><span class="ver">Ver lista →</span></a>
+  {% endwith %}
+  <a class="mk-kpi bi-kpi" href="{% url 'prospeccao:captacao_detalhe' 'cnpjs' %}{{ q }}{% if extra %}&amp;{{ extra }}{% endif %}" title="Ver os CNPJ confirmados"><span class="t">CNPJ confirmados</span><span class="n">{{ k.cnpjs_confirmados|intcomma }}</span><span class="d">Validados com o cliente</span><span class="ver">Ver lista →</span></a>
+  <a class="mk-kpi bi-kpi" href="{% url 'prospeccao:captacao_detalhe' 'vendas' %}{{ q }}{% if extra %}&amp;{{ extra }}{% endif %}" title="Ver as vendas informadas"><span class="t">Vendas informadas</span><span class="n">{{ k.vendas|intcomma }}</span><span class="d">R$ {{ k.valor_vendas|floatformat:"2g" }} · {{ k.taxa_venda }}% das abordadas</span><span class="ver">Ver lista →</span></a>
+  <a class="mk-kpi bi-kpi forte" href="{% url 'prospeccao:captacao_detalhe' 'vendas_nf' %}{{ q }}{% if extra %}&amp;{{ extra }}{% endif %}" title="Ver as notas fiscais: cliente, valor, quem vendeu e data"><span class="t">Vendido · notas fiscais</span><span class="n moeda">R$ {{ k.valor_nf|floatformat:"2g" }}</span>
+    <span class="d">{% if k.notas_nf %}{{ k.vendas_dias }} venda{{ k.vendas_dias|pluralize }} (dias de compra) de {{ k.empresas_nf }} cliente{{ k.empresas_nf|pluralize }} · {{ k.notas_nf }} nota{{ k.notas_nf|pluralize }}{% else %}Aguardando notas do Salesforce para CNPJ confirmados{% endif %}</span><span class="ver">Ver lista →</span></a>
+  {% endwith %}
+</section>
+
+<div class="bi-grade">
+  <section class="bi-card c8" aria-labelledby="t-dia">
+    <h2 id="t-dia">Empresas procuradas por dia</h2>
+    <p class="sub">Cada barra é um dia de {{ mes_rotulo }}. Uma empresa conta uma vez por dia.</p>
+    <div class="bi-legenda"><span><i style="background:var(--s1)"></i>Conversaram</span><span><i style="background:var(--s2)"></i>Sem resposta</span></div>
+    <div class="bi-graf" id="g-dias" role="img" aria-label="Gráfico de colunas por dia; a tabela abaixo traz os mesmos números"></div>
+    <details class="bi-tabela"><summary>Ver em tabela</summary><table><tr><th>Dia</th><th class="n">Conversaram</th><th class="n">Sem resposta</th><th class="n">Total</th></tr>
+      {% for x in d.dias %}{% if x.conversa or x.tentativa %}<tr><td>{{ x.dia }}</td><td class="n">{{ x.conversa }}</td><td class="n">{{ x.tentativa }}</td><td class="n">{{ x.conversa|add:x.tentativa }}</td></tr>{% endif %}{% endfor %}</table></details>
+  </section>
+
+  <section class="bi-card c4" aria-labelledby="t-pizza">
+    <h2 id="t-pizza">Procurados × em aberto</h2>
+    <p class="sub">Situação de hoje, todas as empresas encontradas.</p>
+    <div class="bi-graf" id="g-pizza" role="img" aria-label="{{ d.pizza.procurados }} procuradas e {{ d.pizza.em_aberto }} em aberto"></div>
+    <div class="bi-legenda" style="justify-content:center;margin-top:10px">
+      <span><i style="background:var(--s1)"></i>Procurados <b>{{ d.pizza.procurados|intcomma }}</b></span>
+      <span><i style="background:var(--neutro)"></i>Em aberto <b>{{ d.pizza.em_aberto|intcomma }}</b></span>
+    </div>
+    <p class="sub" style="text-align:center;margin-top:8px"><a href="{% url 'prospeccao:insight_sales' %}">Abrir a lista de quem falta procurar</a></p>
+  </section>
+
+  <section class="bi-card c6" aria-labelledby="t-funil">
+    <h2 id="t-funil">Funil de captação</h2>
+    <p class="sub">Desde o início. Cada etapa mostra quantas empresas chegaram até ela.</p>
+    <div class="bi-graf" id="g-funil" role="img" aria-label="Funil; a tabela abaixo traz os números"></div>
+    <details class="bi-tabela"><summary>Ver em tabela</summary><table><tr><th>Etapa</th><th class="n">Empresas</th></tr>
+      {% for x in d.funil %}<tr><td>{{ x.etapa }}</td><td class="n">{{ x.n }}</td></tr>{% endfor %}</table></details>
+  </section>
+
+  <section class="bi-card c6" aria-labelledby="t-res">
+    <h2 id="t-res">Resultado dos contatos</h2>
+    <p class="sub">Contatos registrados em {{ mes_rotulo }}.</p>
+    <div class="bi-legenda"><span><i style="background:var(--s1)"></i>Com conversa</span><span><i style="background:var(--s2)"></i>Tentativa</span></div>
+    <div class="bi-graf" id="g-res" role="img" aria-label="Contatos por resultado; a tabela abaixo traz os números"></div>
+    <details class="bi-tabela"><summary>Ver em tabela</summary><table><tr><th>Resultado</th><th class="n">Contatos</th></tr>
+      {% for x in d.resultados %}<tr><td>{{ x.rotulo }}</td><td class="n">{{ x.n }}</td></tr>{% endfor %}</table></details>
+  </section>
+
+  <section class="bi-card c4" aria-labelledby="t-r1"><h2 id="t-r1">Quem mais fez orçamentos</h2><p class="sub">{{ mes_rotulo }}</p><div id="r-orcamentos"></div></section>
+  <section class="bi-card c4" aria-labelledby="t-r2"><h2 id="t-r2">Quem mais conversou com clientes</h2><p class="sub">Empresas com conversa efetiva</p><div id="r-conversas"></div></section>
+  <section class="bi-card c4" aria-labelledby="t-r3"><h2 id="t-r3">Quem mais vendeu</h2><p class="sub">Por notas fiscais dos CNPJ confirmados; o valor informado aparece ao lado</p><div id="r-vendas"></div></section>
+</div>
+<div class="bi-dica" id="bi-dica" role="tooltip"></div>
+</div>
+{{ grafico|json_script:"bi-dados" }}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById("bi-dados").textContent);
+  var NS = "http://www.w3.org/2000/svg";
+  var dica = document.getElementById("bi-dica");
+  var fmt = new Intl.NumberFormat("pt-BR"), brl = new Intl.NumberFormat("pt-BR", {style: "currency", currency: "BRL"});
+  function el(tag, at, pai) { var e = document.createElementNS(NS, tag); for (var k in at) e.setAttribute(k, at[k]); if (pai) pai.appendChild(e); return e; }
+  function mostra(ev, html) { dica.innerHTML = html; dica.style.display = "block";
+    var x = ev.clientX + 14, y = ev.clientY + 14, w = dica.offsetWidth, h = dica.offsetHeight;
+    if (x + w > innerWidth - 8) x = ev.clientX - w - 14; if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+    dica.style.left = x + "px"; dica.style.top = y + "px"; }
+  function esconde() { dica.style.display = "none"; }
+  function cor(v) { return getComputedStyle(document.querySelector(".bi")).getPropertyValue(v).trim(); }
+  function vazio(alvo, txt) { alvo.innerHTML = '<p class="bi-vazio">' + txt + "</p>"; }
+  // coluna arredondada só no topo (4px), ancorada na base
+  function colRet(x, y, w, h, r) { r = Math.min(r, h, w / 2); return "M" + x + "," + (y + h) + "V" + (y + r) + "Q" + x + "," + y + " " + (x + r) + "," + y +
+    "H" + (x + w - r) + "Q" + (x + w) + "," + y + " " + (x + w) + "," + (y + r) + "V" + (y + h) + "Z"; }
+  function barraH(x, y, w, h, r) { r = Math.min(r, w, h / 2); return "M" + x + "," + y + "H" + (x + w - r) + "Q" + (x + w) + "," + y + " " + (x + w) + "," + (y + r) +
+    "V" + (y + h - r) + "Q" + (x + w) + "," + (y + h) + " " + (x + w - r) + "," + (y + h) + "H" + x + "Z"; }
+  function escala(max) { var p = Math.pow(10, Math.floor(Math.log10(Math.max(max, 1)))), s = [1, 2, 5, 10];
+    for (var i = 0; i < s.length; i++) { var passo = s[i] * p / (max > 4 ? 1 : 1); if (max / passo <= 4) return {passo: Math.max(1, passo), topo: Math.max(1, Math.ceil(max / passo) * passo)}; }
+    return {passo: p * 10, topo: Math.ceil(max / (p * 10)) * p * 10}; }
+
+  // 1. colunas empilhadas por dia
+  (function () {
+    var alvo = document.getElementById("g-dias"), dias = D.dias;
+    var max = Math.max.apply(null, dias.map(function (d) { return d.conversa + d.tentativa; }));
+    if (!max) { vazio(alvo, "Nenhum contato registrado neste mês."); return; }
+    var W = alvo.clientWidth || 700, H = 240, m = {t: 8, r: 6, b: 24, l: 30}, iw = W - m.l - m.r, ih = H - m.t - m.b;
+    var sv = el("svg", {viewBox: "0 0 " + W + " " + H}, alvo), e = escala(max), gap = 2;
+    for (var v = 0; v <= e.topo; v += e.passo) { var y = m.t + ih - ih * v / e.topo;
+      el("line", {x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: cor("--grade"), "stroke-width": 1}, sv);
+      var t = el("text", {x: m.l - 6, y: y + 4, "text-anchor": "end", "font-size": 11, fill: cor("--ink2")}, sv); t.textContent = fmt.format(v); }
+    var bw = iw / dias.length, larg = Math.max(4, Math.min(22, bw - 4));
+    dias.forEach(function (d, i) {
+      var x = m.l + i * bw + (bw - larg) / 2, tot = d.conversa + d.tentativa;
+      if (i % (dias.length > 20 && W < 640 ? 3 : 1) === 0 || i === dias.length - 1) {
+        var tx = el("text", {x: x + larg / 2, y: H - 6, "text-anchor": "middle", "font-size": 10.5, fill: d.futuro ? cor("--neutro") : cor("--ink2")}, sv); tx.textContent = d.dia; }
+      if (!tot) return;
+      // empilhado: conversa embaixo, sem resposta em cima, 2px de respiro; só o topo da pilha é arredondado
+      var base = m.t + ih, hc = ih * d.conversa / e.topo, ht = ih * d.tentativa / e.topo;
+      var g = d.conversa && d.tentativa ? gap : 0;
+      if (d.conversa) el("path", {d: d.tentativa ? "M" + x + "," + base + "V" + (base - hc) + "H" + (x + larg) + "V" + base + "Z"
+                                                 : colRet(x, base - hc, larg, hc, 4), fill: cor("--s1")}, sv);
+      if (d.tentativa) el("path", {d: colRet(x, base - hc - g - ht, larg, ht, 4), fill: cor("--s2")}, sv);
+      var alvoH = el("rect", {x: m.l + i * bw, y: m.t, width: bw, height: ih, fill: "transparent"}, sv);
+      var dt = d.data.split("-");
+      alvoH.addEventListener("mousemove", function (ev) { mostra(ev, "<b>" + dt[2] + "/" + dt[1] + "</b><br>" + fmt.format(tot) + " empresa" + (tot > 1 ? "s" : "") +
+        "<br>Conversaram: " + fmt.format(d.conversa) + "<br>Sem resposta: " + fmt.format(d.tentativa)); });
+      alvoH.addEventListener("mouseleave", esconde);
+    });
+  })();
+
+  // 2. rosca procurados x em aberto (pedido: pizza)
+  (function () {
+    var alvo = document.getElementById("g-pizza"), p = D.pizza, tot = p.procurados + p.em_aberto;
+    if (!tot) { vazio(alvo, "Nenhuma empresa encontrada ainda."); return; }
+    var S = 220, r = 92, esp = 26, cx = S / 2, cy = S / 2, sv = el("svg", {viewBox: "0 0 " + S + " " + S, style: "max-width:240px;margin:0 auto"}, alvo);
+    var C = 2 * Math.PI * r, frac = p.procurados / tot;
+    el("circle", {cx: cx, cy: cy, r: r, fill: "none", stroke: cor("--neutro"), "stroke-width": esp}, sv);
+    if (p.procurados) el("circle", {cx: cx, cy: cy, r: r, fill: "none", stroke: cor("--s1"), "stroke-width": esp,
+      "stroke-dasharray": Math.max(0, C * frac - (frac < 1 ? 3 : 0)) + " " + C, transform: "rotate(-90 " + cx + " " + cy + ")"}, sv);
+    var n = el("text", {x: cx, y: cy + 2, "text-anchor": "middle", "font-size": 34, "font-weight": 800, fill: cor("--ink")}, sv);
+    n.textContent = Math.round(frac * 100) + "%";
+    var s = el("text", {x: cx, y: cy + 24, "text-anchor": "middle", "font-size": 12, fill: cor("--ink2")}, sv); s.textContent = "procurados";
+    var area = el("circle", {cx: cx, cy: cy, r: r + esp / 2, fill: "transparent"}, sv);
+    area.addEventListener("mousemove", function (ev) { mostra(ev, "<b>Procurados:</b> " + fmt.format(p.procurados) + " (" + Math.round(frac * 100) + "%)<br><b>Em aberto:</b> " +
+      fmt.format(p.em_aberto) + " (" + (100 - Math.round(frac * 100)) + "%)"); });
+    area.addEventListener("mouseleave", esconde);
+  })();
+
+  // barras horizontais genéricas (funil e resultados)
+  function barras(alvo, itens, rotulo, valor, corDe, dicaDe) {
+    if (!itens.length || !Math.max.apply(null, itens.map(valor))) { vazio(alvo, "Sem dados no período."); return; }
+    var W = alvo.clientWidth || 520, lw = Math.min(190, W * 0.42), linha = 30, alt = 16, H = itens.length * linha + 4;
+    var sv = el("svg", {viewBox: "0 0 " + W + " " + H}, alvo), max = Math.max.apply(null, itens.map(valor)), iw = W - lw - 56;
+    itens.forEach(function (it, i) {
+      var y = i * linha + 4, v = valor(it), w = Math.max(v ? 3 : 0, iw * v / max);
+      var t = el("text", {x: 0, y: y + alt - 3, "font-size": 12.5, fill: cor("--ink")}, sv); t.textContent = rotulo(it).length > 30 ? rotulo(it).slice(0, 29) + "…" : rotulo(it);
+      el("rect", {x: lw, y: y, width: iw, height: alt, rx: 4, fill: cor("--grade")}, sv);
+      if (w) el("path", {d: barraH(lw, y, w, alt, 4), fill: corDe(it)}, sv);
+      var vt = el("text", {x: lw + iw + 8, y: y + alt - 3, "font-size": 12.5, "font-weight": 700, fill: cor("--ink")}, sv); vt.textContent = fmt.format(v);
+      var h = el("rect", {x: 0, y: y - 6, width: W, height: linha, fill: "transparent"}, sv);
+      h.addEventListener("mousemove", function (ev) { mostra(ev, dicaDe(it, i)); }); h.addEventListener("mouseleave", esconde);
+    });
+  }
+  barras(document.getElementById("g-funil"), D.funil, function (x) { return x.etapa; }, function (x) { return x.n; },
+    function () { return cor("--s1"); },
+    function (x, i) { var ant = i ? D.funil[i - 1].n : 0; return "<b>" + x.etapa + ":</b> " + fmt.format(x.n) + (i && ant ? "<br>" + Math.round(x.n * 100 / ant) + "% da etapa anterior" : ""); });
+  barras(document.getElementById("g-res"), D.resultados, function (x) { return x.rotulo.replace("Conversa – ", "").replace("Tentativa – ", ""); },
+    function (x) { return x.n; }, function (x) { return cor(x.conversa ? "--s1" : "--s2"); },
+    function (x) { return "<b>" + x.rotulo + "</b><br>" + fmt.format(x.n) + " contato" + (x.n > 1 ? "s" : ""); });
+
+  // rankings
+  function ranking(id, lista, valor, texto, vazioTxt) {
+    var alvo = document.getElementById(id);
+    if (!lista.length) { vazio(alvo, vazioTxt); return; }
+    var max = Math.max.apply(null, lista.map(valor)) || 1, ul = document.createElement("ol"); ul.className = "bi-rank";
+    lista.forEach(function (l, i) {
+      var li = document.createElement("li");
+      li.innerHTML = '<span class="pos">' + (i + 1) + 'º</span><span class="nome"></span><span class="val">' + texto(l) + '</span><span></span><span class="trilho"><span style="width:' + Math.max(2, valor(l) * 100 / max) + '%"></span></span>';
+      li.querySelector(".nome").textContent = l.nome; ul.appendChild(li);
+    });
+    alvo.appendChild(ul);
+  }
+  ranking("r-orcamentos", D.rankings.orcamentos, function (l) { return l.orcamentos; },
+    function (l) { return fmt.format(l.orcamentos) + "<small>" + brl.format(l.valor_orc) + "</small>"; }, "Nenhum orçamento registrado no mês. Registre em “Registrar contato” → Orçamento enviado.");
+  ranking("r-conversas", D.rankings.conversas, function (l) { return l.conversas; },
+    function (l) { return fmt.format(l.conversas) + "<small>de " + fmt.format(l.abordados) + " procuradas</small>"; }, "Nenhuma conversa registrada no mês.");
+  ranking("r-vendas", D.rankings.vendas, function (l) { return l.valor_nf || l.valor_venda; },
+    function (l) { return l.valor_nf ? brl.format(l.valor_nf) + "<small>" + fmt.format(l.notas_nf) + " nota" + (l.notas_nf > 1 ? "s" : "") + " fisca" + (l.notas_nf > 1 ? "is" : "l") + " · informado " + brl.format(l.valor_venda) + "</small>"
+                           : brl.format(l.valor_venda) + "<small>informado · aguardando nota fiscal</small>"; }, "Nenhuma venda registrada no mês. Registre em “Registrar contato” → Venda fechada.");
+})();
+</script>
+{% endblock %}

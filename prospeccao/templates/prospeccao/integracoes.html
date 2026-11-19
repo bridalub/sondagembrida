@@ -1,0 +1,71 @@
+{% extends "carteira/base.html" %}
+{% load humanize %}
+{% block title %}Integrações e sincronizações{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Integrações e fontes</h1>
+    <p class="lead">Situação das bases usadas pela prospecção. Esta tela só lê o que está registrado: nenhuma sincronização nem chamada externa é feita daqui.</p>
+  </div>
+</div>
+<nav class="atalhos-gestao" aria-label="Atalhos de gestão">
+  <a class="btn sec btn-mini" href="{% url 'prospeccao:fontes' %}">Fontes de pesquisa</a>
+  <a class="btn sec btn-mini" href="{% url 'prospeccao:base_receita' %}">Base da Receita</a>
+  <a class="btn sec btn-mini" href="{% url 'carteira:importacoes' %}">Sincronizações</a>
+</nav>
+
+<div class="duas">
+  <section class="card {% if not cruzamento_atual %}aviso{% endif %}" aria-labelledby="t-sf">
+    <h2 id="t-sf">Salesforce (clientes, leads e bloqueadas)</h2>
+    <p>{% if cruzamento_quando %}Última sincronização de clientes: <strong>{{ cruzamento_quando|date:"d/m/Y H:i" }}</strong>{% else %}<strong>Nenhuma sincronização de clientes registrada.</strong>{% endif %}
+      {% if cruzamento_atual %}<span class="tag ok">atual (até {{ cruzamento_horas }} h)</span>{% else %}<span class="tag aviso">desatualizada</span>{% endif %}</p>
+    <p class="peq">O cruzamento impede que clientes, leads e contas bloqueadas apareçam como novas oportunidades. {% if not cruzamento_atual %}Enquanto estiver desatualizado, liberar ou exportar faz uma conferência direta no Salesforce, somente leitura.{% endif %}</p>
+    {% if cobertura %}<p class="peq">Histórico de compras: notas de {{ cobertura.0|date:"d/m/Y" }} a {{ cobertura.1|date:"d/m/Y H:i" }}.</p>{% else %}<p class="peq"><span class="tag INDISPONIVEL">sem histórico de compras sincronizado</span></p>{% endif %}
+    {% if notas_sem_empresa %}<p class="peq mut">{{ notas_sem_empresa|intcomma }} nota(s) de contas fora do filtro de clientes.</p>{% endif %}
+    {% if revisao_cadastral %}<p class="peq"><a href="{% url 'carteira:revisao' %}">{{ revisao_cadastral|intcomma }} cadastro{{ revisao_cadastral|pluralize }} da carteira com revisão pendente</a></p>{% endif %}
+  </section>
+
+  <section class="card" aria-labelledby="t-rf">
+    <h2 id="t-rf">Base pública de CNPJ (Receita)</h2>
+    {% if carga_receita %}<p>Competência <strong>{{ carga_receita.competencia }}</strong> · {{ carga_receita.descricao_filtro }} · {{ carga_receita.estabelecimentos|intcomma }} estabelecimentos.</p>
+    {% else %}<p><strong>Nenhuma carga ativa.</strong></p>{% endif %}
+    <p class="peq">Base mensal, não é consulta em tempo real. Telefones e e-mails cadastrais podem ser do contador.</p>
+    <a class="btn sec btn-mini" href="{% url 'prospeccao:base_receita' %}">Ver cargas e panorama</a>
+  </section>
+
+  <section class="card {% if not ia_status.0 %}aviso{% endif %}" aria-labelledby="t-ia">
+    <h2 id="t-ia">Inteligência artificial e busca web</h2>
+    <p>{{ ia_status.1 }}</p>
+    <p class="peq">A IA só lê o material coletado e suas conclusões aparecem como hipótese. Chamadas pagas seguem o teto de cada pesquisa (ver <a href="{% url 'prospeccao:parametros' %}">Parâmetros e orçamento</a>).</p>
+  </section>
+
+  <section class="card" aria-labelledby="t-fo">
+    <h2 id="t-fo">Fontes que exigem credencial</h2>
+    {% if fontes_credencial %}<ul class="motivo-lista" style="color:var(--tx)">{% for f in fontes_credencial %}<li>{{ f.nome }}: {% if f.credencial_configurada %}<span class="tag ok">configurada</span>{% else %}<span class="tag aviso">ausente</span>{% endif %}{% if not f.habilitada %} <span class="tag CANCELADA">desabilitada</span>{% endif %}</li>{% endfor %}</ul>
+    {% else %}<p class="mut">Nenhuma fonte cadastrada exige credencial.</p>{% endif %}
+    <p class="peq mut">Os valores das credenciais nunca são exibidos.</p>
+    <a class="btn sec btn-mini" href="{% url 'prospeccao:fontes' %}">Ver fontes e limites</a>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="t-imp">
+  <div class="card-cab"><h2 id="t-imp">Últimas importações do Salesforce</h2><a href="{% url 'carteira:importacoes' %}">Todas</a></div>
+  {% if importacoes %}
+  <div class="tabela"><table>
+    <tr><th>Quando</th><th>Tipo</th><th>Situação</th><th>Lidos</th><th>Criados</th><th>Atualizados</th><th>Rejeitados</th></tr>
+    {% for i in importacoes %}<tr><td><a href="{% url 'carteira:importacao_detalhe' i.pk %}">{{ i.iniciado_em|date:"d/m/Y H:i" }}</a></td><td>{{ i.get_tipo_display }}</td>
+      <td><span class="tag {{ i.status }}">{{ i.get_status_display }}</span></td><td>{{ i.lidos|intcomma }}</td><td>{{ i.criados|intcomma }}</td><td>{{ i.atualizados|intcomma }}</td><td>{{ i.rejeitados|intcomma }}</td></tr>{% endfor %}
+  </table></div>
+  {% else %}<p class="mut">Nenhuma importação registrada.</p>{% endif %}
+</section>
+
+<details class="card avancado" style="background:#fff">
+  <summary>Comandos de manutenção (equipe técnica)</summary>
+  <ul class="peq" style="padding-left:18px">
+    <li><code>python manage.py sync_salesforce</code> – leitura do Salesforce (clientes, contatos, leads e notas)</li>
+    <li><code>python manage.py importar_receita --competencia AAAA-MM --uf SP --municipio GUARULHOS</code> – base pública de CNPJ</li>
+    <li><code>python manage.py prospeccao_worker --uma-vez</code> – processa a fila de execuções</li>
+    <li><code>python manage.py verificar_integracoes</code> – mostra quais variáveis estão definidas, sem exibir valores</li>
+  </ul>
+</details>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "carteira/base.html" %}
+{% load carteira_tags %}
+{% block title %}{{ lista.nome }}{% endblock %}
+{% block content %}
+<a class="voltar" href="{% url 'carteira:listas' %}">{% include "carteira/_icone.html" with nome="voltar" %}Voltar às listas</a>
+<div class="page-head">
+  <div>
+    <h1>{{ lista.nome }} <span class="contador">{{ empresas|length }} empresa{{ empresas|length|pluralize }}</span></h1>
+    <p class="lead">Criada em {{ lista.criada_em|date:"d/m/Y H:i" }} por {{ lista.criada_por }}. A situação de contato abaixo é a atual.</p>
+  </div>
+  <div class="acoes"><a class="btn sec" href="{% url 'carteira:lista_csv' lista.pk %}">Exportar CSV</a></div>
+</div>
+<div class="tabela"><table>
+  <tr><th>Empresa</th><th>CNPJ</th><th>Segmento</th><th>Município</th><th>Telefone</th><th>Compra</th><th>Contato</th><th>Ação</th></tr>
+  {% for e in empresas %}
+  <tr><td><a href="{% url 'carteira:empresa_detalhe' e.pk %}"><strong>{{ e.nome }}</strong></a></td><td class="cnpj">{{ e.cnpj_formatado|nd }}</td><td>{{ e.segmento|nd }}</td>
+    <td>{{ e.cidade }}/{{ e.uf }}</td>
+    <td>{% if e.telefone %}<span class="contato-valor"><a class="v" href="{{ e.telefone|tel_href }}">{{ e.telefone }}</a><button type="button" class="icone-btn" data-copy="{{ e.telefone }}" data-copy-rotulo="Telefone" aria-label="Copiar telefone {{ e.telefone }}">{% include "carteira/_icone.html" with nome="copiar" %}</button></span>{% else %}{{ ""|nd }}{% endif %}</td>
+    <td><span class="tag {{ e.situacao_compra }}">{{ e.situacao_compra|rotulo:rot_compra }}</span></td>
+    <td><span class="tag {{ e.situacao_contato }}">{{ e.situacao_contato|rotulo:rot_contato }}</span></td>
+    <td>{% if e.situacao_contato != "NAO_CONTATAR" %}<a class="btn btn-mini" href="{% url 'carteira:registrar_abordagem' e.pk %}?proximo={{ request.get_full_path|urlencode }}">Registrar abordagem</a>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="8" class="mut">Lista vazia.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

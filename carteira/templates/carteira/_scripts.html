@@ -1,0 +1,166 @@
+<script>
+(function () {
+  "use strict";
+  const body = document.body;
+  const nav = document.getElementById("nav-principal");
+  const btnMenu = document.getElementById("btn-menu");
+  const btnRecolher = document.getElementById("btn-recolher");
+  const fundo = document.getElementById("nav-fundo");
+  const movel = window.matchMedia("(max-width: 768px)");
+
+  /* ---------------- menu lateral: móvel (abre/fecha, Escape, foco) e recolhível (desktop) */
+  function focaveis() {
+    return nav ? Array.prototype.slice.call(nav.querySelectorAll("a[href], button:not([disabled])"))
+      .filter(function (el) { return el.offsetParent !== null; }) : [];
+  }
+  function ajustaInert() {
+    if (!nav) return;
+    const fechadoNoMovel = movel.matches && !body.classList.contains("nav-aberta");
+    if (fechadoNoMovel) { nav.setAttribute("inert", ""); nav.setAttribute("aria-hidden", "true"); }
+    else { nav.removeAttribute("inert"); nav.removeAttribute("aria-hidden"); }
+  }
+  function fechaMobile(devolverFoco) {
+    if (!body.classList.contains("nav-aberta")) return;
+    body.classList.remove("nav-aberta");
+    if (btnMenu) { btnMenu.setAttribute("aria-expanded", "false"); if (devolverFoco) btnMenu.focus(); }
+    ajustaInert();
+  }
+  function abreMobile() {
+    body.classList.add("nav-aberta");
+    if (btnMenu) btnMenu.setAttribute("aria-expanded", "true");
+    ajustaInert();
+    const ativo = nav.querySelector(".nav-item.ativo") || focaveis()[0];
+    if (ativo) ativo.focus();
+  }
+  if (btnMenu) btnMenu.addEventListener("click", function () {
+    if (body.classList.contains("nav-aberta")) fechaMobile(true); else abreMobile();
+  });
+  if (fundo) fundo.addEventListener("click", function () { fechaMobile(true); });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape" && body.classList.contains("nav-aberta")) { ev.preventDefault(); fechaMobile(true); return; }
+    if (ev.key === "Tab" && body.classList.contains("nav-aberta") && movel.matches) {
+      const els = focaveis(); if (!els.length) return;
+      const primeiro = els[0], ultimo = els[els.length - 1];
+      if (ev.shiftKey && document.activeElement === primeiro) { ev.preventDefault(); ultimo.focus(); }
+      else if (!ev.shiftKey && document.activeElement === ultimo) { ev.preventDefault(); primeiro.focus(); }
+    }
+  });
+  const aoMudar = function () { if (!movel.matches) fechaMobile(false); ajustaInert(); };
+  if (movel.addEventListener) movel.addEventListener("change", aoMudar); else if (movel.addListener) movel.addListener(aoMudar);
+  ajustaInert();
+
+  function atualizaRecolher() {
+    if (!btnRecolher) return;
+    const rec = body.classList.contains("nav-recolhida");
+    btnRecolher.setAttribute("aria-expanded", rec ? "false" : "true");
+    btnRecolher.setAttribute("aria-label", rec ? "Expandir menu" : "Recolher menu");
+    btnRecolher.title = rec ? "Expandir menu" : "Recolher menu";
+  }
+  if (btnRecolher) btnRecolher.addEventListener("click", function () {
+    body.classList.toggle("nav-recolhida");
+    try { localStorage.setItem("brida-nav", body.classList.contains("nav-recolhida") ? "1" : "0"); } catch (e) {}
+    atualizaRecolher();
+  });
+  atualizaRecolher();
+  const tituloBarra = document.getElementById("topbar-titulo");
+  if (tituloBarra) {
+    const t = (document.title || "").split("·")[0].trim();
+    if (t) tituloBarra.textContent = t;
+  }
+
+  /* ---------------- aviso curto (cópia, etc.) */
+  function toast(msg, erro) {
+    const el = document.getElementById("toast");
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.toggle("erro", !!erro);
+    el.style.display = "block";
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.style.display = "none"; }, 2600);
+  }
+  window.bridaToast = toast;
+
+  /* ---------------- copiar telefone/e-mail/CNPJ (não registra abordagem) */
+  function copiaFallback(texto) {
+    const ta = document.createElement("textarea");
+    ta.value = texto; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target.closest("[data-copy]");
+    if (!btn) return;
+    ev.preventDefault();
+    const texto = btn.getAttribute("data-copy") || "";
+    const rotulo = btn.getAttribute("data-copy-rotulo") || "Texto";
+    if (!texto) { toast("Nada para copiar.", true); return; }
+    const sucesso = function () { toast(rotulo + " copiado: " + texto); };
+    const falha = function () { toast("Não foi possível copiar. Selecione e copie manualmente: " + texto, true); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(texto).then(sucesso).catch(function () { copiaFallback(texto) ? sucesso() : falha(); });
+    } else { copiaFallback(texto) ? sucesso() : falha(); }
+  });
+
+  /* ---------------- confirmação explícita (ex.: executar pesquisa) */
+  document.addEventListener("submit", function (ev) {
+    const form = ev.target;
+    const msg = form.getAttribute("data-confirma");
+    if (msg && !window.confirm(msg)) { ev.preventDefault(); return; }
+    /* filtros (GET): não envia campos vazios, para a URL ficar curta e compartilhável */
+    if ((form.method || "").toLowerCase() === "get") {
+      Array.prototype.forEach.call(form.elements, function (el) {
+        if (el.name && !el.disabled && (el.type === "checkbox" ? !el.checked : el.value === "")) {
+          el.disabled = true;
+          setTimeout(function () { el.disabled = false; }, 0);
+        }
+      });
+    }
+  }, true);
+
+  /* ---------------- tabelas: rótulos para o modo cartão no celular */
+  document.querySelectorAll(".tabela table").forEach(function (tabela) {
+    const linhas = tabela.rows;
+    if (!linhas.length) return;
+    const cab = linhas[0];
+    if (!cab.querySelector("th")) return;
+    cab.classList.add("cab");
+    const rotulos = Array.prototype.map.call(cab.cells, function (c) { return c.textContent.trim(); });
+    for (let i = 1; i < linhas.length; i++) {
+      const cels = linhas[i].cells;
+      if (cels.length === 1 && cels[0].colSpan > 1) { cels[0].classList.add("vazio-td"); continue; }
+      let col = 0;
+      for (let j = 0; j < cels.length; j++) {
+        if (!cels[j].hasAttribute("data-label")) cels[j].setAttribute("data-label", rotulos[col] || "");
+        col += cels[j].colSpan || 1;
+      }
+    }
+  });
+
+  /* ---------------- seções recolhidas com erro abrem sozinhas */
+  document.querySelectorAll("details").forEach(function (d) {
+    if (d.querySelector(".errorlist, .tem-erro")) d.open = true;
+  });
+  document.querySelectorAll(".form-campo.tem-erro input, .form-campo.tem-erro select, .form-campo.tem-erro textarea").forEach(function (el) {
+    el.setAttribute("aria-invalid", "true");
+    const erro = el.closest(".form-campo").querySelector(".errorlist");
+    const ajuda = el.closest(".form-campo").querySelector(".ajuda");
+    const ids = [];
+    if (erro && erro.id) ids.push(erro.id);
+    if (ajuda && ajuda.id) ids.push(ajuda.id);
+    if (ids.length) el.setAttribute("aria-describedby", ids.join(" "));
+  });
+  const resumoErro = document.querySelector(".erro-resumo");
+  if (resumoErro) { resumoErro.setAttribute("tabindex", "-1"); resumoErro.focus(); }
+  document.querySelectorAll(".erro-resumo a[href^='#']").forEach(function (a) {
+    a.addEventListener("click", function () {
+      const alvo = document.querySelector(a.getAttribute("href"));
+      if (!alvo) return;
+      const det = alvo.closest("details"); if (det) det.open = true;
+      setTimeout(function () { const campo = alvo.querySelector("input, select, textarea") || alvo; campo.focus(); }, 30);
+    });
+  });
+})();
+</script>

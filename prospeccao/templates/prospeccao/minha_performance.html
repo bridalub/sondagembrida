@@ -1,0 +1,333 @@
+{% extends "carteira/base.html" %}
+{% load humanize static %}
+{% block title %}Minha performance{% endblock %}
+{% block content %}
+{% include "prospeccao/_marca_painel.html" %}
+<style>
+.mp-cab { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; margin: 4px 0 16px; }
+.mp-cab h1 { margin: 0 0 4px; font-size: 1.55rem; }
+.mp-mes { display: inline-flex; align-items: center; border: 1px solid var(--bd-forte); border-radius: 10px; background: #fff; overflow: hidden; }
+.mp-mes a { padding: 9px 12px; text-decoration: none; color: var(--azul); font-weight: 800; }
+.mp-mes span { padding: 9px 14px; font-weight: 700; color: var(--azul-900); border-left: 1px solid var(--bd); border-right: 1px solid var(--bd); min-width: 170px; text-align: center; }
+.mp-mes .off { color: var(--bd-forte); pointer-events: none; }
+.mp-regra { position: relative; }
+.mp-regra summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 42px;
+  padding: 0 14px; border: 1px solid var(--bd-forte); border-radius: 10px; background: #fff; font-weight: 700; color: var(--azul-900); }
+.mp-regra summary::-webkit-details-marker { display: none; }
+.mp-regra summary::before { content: "★"; color: var(--laranja); }
+.mp-regra[open] summary { border-color: var(--azul); box-shadow: 0 0 0 3px var(--azul-50); }
+.mp-regra-pop { position: absolute; z-index: 30; top: calc(100% + 8px); right: 0; width: min(92vw, 420px); background: #fff;
+  border: 1px solid var(--bd); border-radius: var(--raio); box-shadow: 0 12px 32px rgba(20, 30, 70, .18); padding: 14px 16px; font-size: 13.5px; }
+.mp-regra-pop table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+.mp-regra-pop td { padding: 6px 4px; border-bottom: 1px solid var(--bd); }
+.mp-regra-pop td:last-child { text-align: right; font-weight: 800; color: var(--azul-900); white-space: nowrap; }
+.mp-regra-pop tr.forte td { color: #b4520f; font-weight: 700; }
+.mp-regra-pop ul { margin: 6px 0 0; padding-left: 18px; color: var(--mut); font-size: 12.5px; }
+.mp-regra-pop li { margin: 3px 0; }
+.mp-kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); margin-bottom: 16px; }
+.mp-kpi { background: #fff; border: 1px solid var(--bd); border-radius: var(--raio); padding: 14px 16px; box-shadow: var(--sombra); }
+.mp-kpi .t { font-size: 13px; font-weight: 650; color: var(--mut); }
+.mp-kpi .n { display: block; font-size: 1.8rem; font-weight: 800; color: #21275A; line-height: 1.15; font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; }
+.mp-kpi .n.moeda { font-size: 1.4rem; }
+.mp-kpi .d { font-size: 12.5px; color: var(--mut); }
+.mp-kpi.forte { border-top: 4px solid var(--laranja); }
+.mp-grade { display: grid; gap: 16px; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+@media (max-width: 1000px) { .mp-grade { grid-template-columns: 1fr; } }
+.mp-barras { display: flex; align-items: flex-end; gap: 3px; height: 150px; padding-top: 6px; border-bottom: 1px solid var(--bd); }
+.mp-barras .b { flex: 1; display: flex; flex-direction: column-reverse; height: 100%; min-width: 4px; }
+.mp-barras .b i { display: block; width: 100%; }
+.mp-barras .c { background: #21275A; border-radius: 3px 3px 0 0; }
+.mp-barras .tt { background: #c6cad8; }
+.mp-eixo { display: flex; gap: 3px; font-size: 11px; color: var(--mut); }
+.mp-eixo span { flex: 1; text-align: center; min-width: 4px; }
+.mp-leg { display: flex; gap: 16px; font-size: 13px; margin: 0 0 6px; }
+.mp-leg i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.mp-lista { list-style: none; margin: 0; padding: 0; }
+.mp-lista li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--bd); font-size: 14px; }
+.mp-lista li:last-child { border-bottom: 0; }
+.atrasado { color: var(--erro, #b42318); font-weight: 700; }
+/* Disputa do mês */
+.gm { margin: 0 0 18px; }
+.gm-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 2px 0 10px; }
+.gm-cab h2 { margin: 0; font-size: 1.15rem; }
+.gm-grade { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: stretch; }
+.gm-grade2 { align-items: start; }
+/* conquistas com a mesma altura do cartão azul: os selos ocupam a altura toda */
+.gm-grade > .gm-card { display: flex; flex-direction: column; }
+.gm-grade > .gm-card .gm-conq { flex: 1; grid-auto-rows: 1fr; }
+.gm-grade2 { margin-top: 16px; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+@media (max-width: 1000px) { .gm-grade, .gm-grade2 { grid-template-columns: 1fr; } }
+.gm-card { background: #fff; border: 1px solid var(--bd); border-radius: 12px; padding: 16px 18px; box-shadow: var(--sombra); min-width: 0; }
+.gm-card h3 { margin: 0 0 12px; font-size: 1rem; color: var(--azul-900); }
+.gm-heroi { position: relative; overflow: hidden; isolation: isolate; border-radius: 12px; padding: 20px 22px; color: #fff;
+  background: radial-gradient(420px 220px at 110% 120%, rgba(238,102,47,.38), transparent 62%), linear-gradient(150deg, #2a316f 0%, #21275A 50%, #181d45 100%);
+  box-shadow: 0 10px 24px -12px rgba(24,29,69,.6); }
+.gm-heroi::before { content: ""; position: absolute; z-index: -1; right: -26px; top: -18px; width: 150px; height: 218px; opacity: .07;
+  background: url("{% static 'brida/img/marca-b-negativo.svg' %}") no-repeat center / contain; }
+.gm-heroi::after { background: linear-gradient(90deg, #EE662F, #f6a04d) !important; }
+.gm-heroi .mk-selo { margin-bottom: 4px; }
+.gm-heroi::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--laranja); }
+.gm-pos { display: flex; align-items: baseline; gap: 2px; }
+.gm-pos b { font-size: 3.4rem; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
+.gm-pos span { font-size: 1.6rem; font-weight: 800; }
+.gm-pos small { margin-left: 8px; font-size: 14px; opacity: .75; }
+.gm-pontos { margin-top: 2px; font-size: 15px; opacity: .9; }
+.gm-pontos b { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.gm-nivel { display: flex; align-items: center; gap: 10px; margin: 14px 0 6px; font-size: 13px; opacity: .95; }
+.gm-selo { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 750; font-size: 12px; letter-spacing: .2px;
+  background: #eef0f6; color: #4a5068; }
+.gm-selo.peq { padding: 1px 8px; font-size: 11px; }
+.gm-selo.bronze { background: #f4e3d3; color: #8a4b1c; }
+.gm-selo.prata { background: #e7ebf2; color: #4b5568; }
+.gm-selo.ouro { background: #fbefc7; color: #8a6400; }
+.gm-selo.diamante { background: #dff3fb; color: #0e6e93; }
+.gm-trilho { height: 8px; border-radius: 999px; background: #e8eaf1; overflow: hidden; }
+.gm-trilho.claro { background: rgba(255, 255, 255, .18); }
+.gm-trilho.fino { height: 5px; margin: 6px 0 2px; }
+.gm-trilho i { display: block; height: 100%; width: var(--w); border-radius: 999px; background: linear-gradient(90deg, #21275A, #3a4390);
+  animation: gm-cresce 1s cubic-bezier(.2, .8, .2, 1) both; }
+.gm-trilho.claro i { background: linear-gradient(90deg, var(--laranja), #f6a04d); }
+@keyframes gm-cresce { from { width: 0; } }
+@media (prefers-reduced-motion: reduce) { .gm-trilho i, .gm-duplo i { animation: none; } }
+.gm-alvo { margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, .1); }
+.gm-alvo strong { display: block; font-size: 14px; }
+.gm-alvo span { font-size: 12.5px; opacity: .8; }
+.gm-mini { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.gm-mini div { padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .08); }
+.gm-mini b { display: block; font-size: 1.15rem; }
+.gm-mini span { font-size: 11.5px; opacity: .75; line-height: 1.2; display: block; }
+.gm-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.gm-rank li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 9px 10px; border-radius: 10px;
+  transition: background .15s; }
+.gm-rank li:hover { background: #f6f7fb; }
+.gm-rank li.eu { background: #fff6f1; outline: 1.5px solid #f6c3a8; }
+.gm-rank li.eu .gm-trilho i { background: linear-gradient(90deg, #EE662F, #f6a04d); }
+.gm-medalha { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font-weight: 800; font-size: 14px;
+  background: #eef0f6; color: #5b627a; }
+.gm-medalha.m1 { background: linear-gradient(135deg, #ffe07a, #e5a90f); color: #5a3e00; box-shadow: 0 2px 6px rgba(229, 169, 15, .35); }
+.gm-medalha.m2 { background: linear-gradient(135deg, #eef1f6, #b8c0cf); color: #3d4558; }
+.gm-medalha.m3 { background: linear-gradient(135deg, #f3d2b3, #c9824a); color: #5a2f0c; }
+.gm-linha1 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 5px; }
+.gm-linha1 strong { color: var(--azul-900); }
+.gm-ritmo { font-size: 11px; font-weight: 700; color: #b4520f; background: #fdeee2; padding: 1px 7px; border-radius: 999px; }
+.gm-detalhe { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 4px; font-size: 12px; color: var(--mut); }
+.gm-detalhe b { font-weight: 650; color: #5b627a; }
+.gm-total { text-align: right; line-height: 1; }
+.gm-total b { display: block; font-size: 1.35rem; font-weight: 800; color: var(--azul-900); font-variant-numeric: tabular-nums; }
+.gm-total small { font-size: 11px; color: var(--mut); }
+.gm-conq { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); }
+.gm-conq li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--bd); color: var(--mut); }
+.gm-conq li strong { display: block; font-size: 13.5px; color: #6b7183; }
+.gm-conq li small { display: block; font-size: 12px; line-height: 1.3; }
+.gm-conq li.ok { border: 1px solid #f3c9a5; background: linear-gradient(180deg, #fff8f2, #fff); }
+.gm-conq li.ok strong { color: var(--azul-900); }
+.gm-conq .gm-ic { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: #f0f1f5; color: #a0a6b8; }
+.gm-conq li.ok .gm-ic { background: var(--laranja); color: #fff; }
+.gm-conq .feito { color: #b4520f; font-weight: 700; margin-top: 2px; }
+.gm-comp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
+.gm-comp-t { display: flex; justify-content: space-between; font-size: 13.5px; }
+.gm-comp-t b.acima { color: #1a7f4b; } .gm-comp-t b.abaixo { color: #b42318; }
+.gm-duplo { position: relative; height: 14px; margin: 4px 0 2px; }
+.gm-duplo i { position: absolute; left: 0; height: 6px; border-radius: 999px; width: var(--w); animation: gm-cresce 1s cubic-bezier(.2, .8, .2, 1) both; }
+.gm-duplo .meu { top: 0; background: #21275A; }
+.gm-duplo .media { top: 8px; background: #c6cad8; }
+.gm-regras { margin-top: 14px; font-size: 13px; }
+.gm-regras summary { cursor: pointer; color: var(--azul); font-weight: 650; }
+.gm-regras ul { list-style: none; margin: 8px 0; padding: 0; }
+.gm-regras li { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--bd); }
+</style>
+
+{% if eh_adm %}
+<header class="pq-cab" style="margin-bottom:8px"><div><h1>Insight Sales</h1></div></header>
+<nav class="is-abas" aria-label="Insight Sales">
+  <a href="{% url 'prospeccao:insight_sales' %}?aba=procurar"><span>A procurar</span><b>{{ contagem.procurar }}</b><small>Leads ainda sem contato registrado</small></a>
+  <a href="{% url 'prospeccao:insight_sales' %}?aba=procurados"><span>Procurados</span><b>{{ contagem.procurados }}</b><small>Com contato registrado e quem atendeu</small></a>
+  <a href="{% url 'prospeccao:minha_performance' %}" aria-current="page"><span>Performance</span><i class="is-ic" aria-hidden="true">{% include "carteira/_icone.html" with nome="pessoa" %}</i><small>Números do mês de cada pessoa</small></a>
+</nav>
+{% endif %}
+<header class="mp-cab mk-hero">
+  <span class="mk-filete" aria-hidden="true"></span>
+  <div>
+    <div class="mk-selo">Performance comercial · Brida</div>
+    <h1{% if eh_adm %} style="font-size:1.4rem"{% endif %}>{% if eh_adm and propria %}Performance · você{% elif propria %}Minha performance{% else %}Performance de {{ pessoa.get_full_name|default:pessoa.get_username }}{% endif %}</h1>
+    <p class="lead">Empresas procuradas, conversas, orçamentos e <b>vendas confirmadas por nota fiscal</b> no mês.</p>
+  </div>
+  <form method="get" class="acoes" style="gap:8px">
+    <div class="mp-mes" role="group" aria-label="Mês">
+      <a href="?mes={{ mes_anterior }}{% if not propria %}&amp;vendedor={{ pessoa.get_username }}{% endif %}{% if simulacao %}&amp;simulacao=1{% endif %}" aria-label="Mês anterior">‹</a>
+      <span>{{ mes_rotulo }}</span>
+      {% if mes_seguinte %}<a href="?mes={{ mes_seguinte }}{% if not propria %}&amp;vendedor={{ pessoa.get_username }}{% endif %}{% if simulacao %}&amp;simulacao=1{% endif %}" aria-label="Mês seguinte">›</a>{% else %}<a class="off" aria-hidden="true">›</a>{% endif %}
+    </div>
+    <details class="mp-regra">
+      <summary title="Como os pontos da disputa do mês são calculados">Regra de pontuação</summary>
+      <div class="mp-regra-pop" role="note">
+        <strong>Cada lead vale a etapa mais alta que alcançou no mês; o orçamento soma à venda</strong>
+        <table>
+          <tr><td>Empresa procurada</td><td>1 pt</td></tr>
+          <tr><td>Conversa efetiva</td><td>3 pts</td></tr>
+          <tr><td>CNPJ confirmado com o cliente</td><td>3 pts</td></tr>
+          <tr><td>Orçamento enviado <small>(com o arquivo anexado)</small></td><td>4 pts</td></tr>
+          <tr class="forte"><td>Venda: cada <b>dia</b> em que o cliente comprou</td><td>30 pts</td></tr>
+        </table>
+        <ul>
+          <li>Orçou e depois vendeu: o orçamento <b>soma</b> à venda (4 + 30 = 34); você não perde o orçamento.</li>
+          <li>Todas as notas fiscais do mesmo dia são <b>uma</b> venda; comprou de novo em outro dia do mês, soma mais 30.</li>
+          <li>A venda é de quem atendeu o cliente (dono do lead) e vale para cliente novo, sem compra ou inativo há mais de 2 anos.</li>
+          <li>Cliente que comprou sai da sua lista de leads; as próximas compras dele no mês continuam somando pontos.</li>
+          <li>O contato conta no dia em que é registrado. ADMIN não entra no ranking.</li>
+        </ul>
+      </div>
+    </details>
+    {% if vendedores %}<input type="hidden" name="mes" value="{{ mes }}">
+    <label class="sr-only" for="f-vend">Atendente</label>
+    <select id="f-vend" name="vendedor" onchange="this.form.submit()" style="width:auto;min-width:180px">
+      <option value="">Eu ({{ user.get_username }})</option>
+      {% for u, nome in vendedores %}<option value="{{ u }}" {% if u == pessoa.get_username and not propria %}selected{% endif %}>{{ nome|default:u }}</option>{% endfor %}
+    </select>{% endif %}
+    {% if simulacao %}<input type="hidden" name="simulacao" value="1">
+    <a class="btn sec" href="?mes={{ mes }}">Sair da simulação</a>
+    {% else %}<a class="btn sec" href="?mes={{ mes }}&amp;simulacao=1" title="Equipe e contatos fictícios, só para ver como a tela funciona. Nada é gravado.">Ver análise de teste</a>{% endif %}
+    {% if not eh_adm %}<a class="btn sec" href="{% url 'prospeccao:insight_sales' %}">Voltar aos leads</a>{% endif %}
+  </form>
+</header>
+
+{% if simulacao %}<div class="faixa aviso" role="status"><strong>Análise de teste.</strong> Equipe e contatos fictícios, criados só para esta visualização e desfeitos em seguida; nada fica gravado.{% if como %} Você está vendo a tela como <strong>{{ como }}</strong>.{% endif %}</div>{% endif %}
+
+{% with eu=jogo.eu %}
+<section class="gm" aria-labelledby="t-disputa">
+  <div class="gm-cab">
+    <h2 id="t-disputa" class="mk-tit">Disputa do mês</h2>
+    <span class="mut peq">{{ jogo.participantes }} participante{{ jogo.participantes|pluralize }} · pontos de {{ mes_rotulo|lower }}</span>
+  </div>
+  <div class="gm-grade">
+    {# Seu momento #}
+    <div class="gm-heroi">
+      {% if eu %}
+      <div class="mk-selo">Sua posição</div>
+      <div class="gm-pos"><b>{{ eu.posicao }}</b><span>º</span><small>de {{ jogo.participantes }}</small></div>
+      <div class="gm-pontos"><b data-conta="{{ eu.pontos }}">{{ eu.pontos }}</b> pontos</div>
+      <div class="gm-nivel"><span class="gm-selo {{ eu.nivel.nome|lower }}">{{ eu.nivel.nome }}</span>
+        {% if eu.nivel.proximo %}<span>{{ eu.nivel.falta }} pts para {{ eu.nivel.proximo }}</span>{% else %}<span>nível máximo</span>{% endif %}</div>
+      <div class="gm-trilho claro"><i style="--w:{{ eu.nivel.pct }}%"></i></div>
+      {% if jogo.alvo %}<div class="gm-alvo"><strong>{{ jogo.alvo.texto }}</strong><span>{{ jogo.alvo.dica }}</span></div>{% endif %}
+      <div class="gm-mini">
+        <div><b>{{ eu.sequencia }}</b><span>{% if eu.sequencia == 1 %}dia útil seguido{% else %}dias úteis seguidos{% endif %}</span></div>
+        <div><b>{{ eu.n_conquistas }}/{{ eu.conquistas|length }}</b><span>conquistas</span></div>
+        <div><b>{{ eu.taxa_conversa }}%</b><span>de conversa</span></div>
+      </div>
+      {% else %}
+      <p style="margin:0">{{ pessoa.get_full_name|default:pessoa.get_username }} não participa da disputa neste mês (perfil ADMIN sem contatos registrados).</p>
+      {% endif %}
+    </div>
+
+    {# Conquistas ao lado do seu momento #}
+    {% if eu %}
+    <div class="gm-card">
+      <h3 class="mk-tit">Conquistas</h3>
+      <ul class="gm-conq">
+        {% for c in eu.conquistas %}
+        <li class="{% if c.ganhou %}ok{% endif %}" title="{{ c.descricao }}">
+          <span class="gm-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/>{% if c.ganhou %}<path d="m9.5 9 1.8 1.8L14.8 7.5"/>{% endif %}</svg></span>
+          <div><strong>{{ c.nome }}</strong><small>{{ c.descricao }}</small>
+            {% if not c.ganhou %}<div class="gm-trilho fino"><i style="--w:{{ c.pct }}%"></i></div><small>{{ c.atual }} de {{ c.meta }}</small>{% else %}<small class="feito">Conquistada</small>{% endif %}</div>
+        </li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="gm-grade gm-grade2">
+    {# Ranking da equipe #}
+    <div class="gm-card">
+      <h3 class="mk-tit">Ranking da equipe</h3>
+      {% if jogo.ranking %}
+      <ol class="gm-rank">
+        {% for x in jogo.ranking %}
+        <li class="{% if eu and x.pk == eu.pk %}eu{% endif %}">
+          <span class="gm-medalha m{{ x.posicao }}">{{ x.posicao }}</span>
+          <div class="gm-quem">
+            <div class="gm-linha1"><strong>{{ x.nome }}</strong>{% if eu and x.pk == eu.pk %}<span class="chip">você</span>{% endif %}
+              <span class="gm-selo {{ x.nivel.nome|lower }} peq">{{ x.nivel.nome }}</span>
+              {% if x.sequencia >= 3 %}<span class="gm-ritmo" title="{{ x.sequencia }} dias úteis seguidos com contato">{{ x.sequencia }}d seguidos</span>{% endif %}</div>
+            <div class="gm-trilho"><i style="--w:{{ x.barra }}%"></i></div>
+            <div class="gm-detalhe">{% for p in x.parcelas %}{% if p.qtd %}<span>{{ p.qtd }} {{ p.rotulo }} <b>· {{ p.pontos }} pts</b></span>{% endif %}{% endfor %}{% if not x.atendimentos %}<span>sem contatos no mês</span>{% endif %}</div>
+          </div>
+          <span class="gm-total"><b>{{ x.pontos }}</b><small>pts</small></span>
+        </li>{% endfor %}
+      </ol>
+      {% else %}<p class="mut">Ninguém da equipe registrou contato neste mês ainda.</p>{% endif %}
+    </div>
+    {% if eu %}
+    <div class="gm-card">
+      <h3 class="mk-tit">Você × média da equipe</h3>
+      <ul class="gm-comp">
+        {% for c in jogo.comparacao %}
+        <li><div class="gm-comp-t"><span>{{ c.rotulo }}</span>
+            <b class="{% if c.igual %}{% elif c.acima %}acima{% else %}abaixo{% endif %}">{{ c.meu }}{% if not c.igual %} {% if c.acima %}▲{% else %}▼{% endif %}{% endif %}</b></div>
+          <div class="gm-duplo"><i class="meu" style="--w:{{ c.pct_meu }}%"></i><i class="media" style="--w:{{ c.pct_media }}%"></i></div>
+          <small class="mut">média da equipe: {{ c.media }}</small></li>{% endfor %}
+      </ul>
+      <details class="gm-regras"><summary>Como funcionam os pontos</summary>
+        <ul>{% for r, p in jogo.regras %}<li><span>{{ r }}</span><b>{{ p }} pt{{ p|pluralize }}</b></li>{% endfor %}</ul>
+        <p class="peq mut"><strong>Cada atendimento vale só a etapa mais alta que alcançou</strong>, sem somar as etapas: uma empresa que chegou ao orçamento vale 4 pontos, não 1 + 3 + 3 + 4. A exceção é a venda: o orçamento soma a ela (orçou e vendeu = 4 + 30). Assim, quem só acumula contatos não passa quem leva o cliente até a venda. Orçamento só pontua com o arquivo do orçamento anexado no registro. Venda vale quando a nota fiscal é emitida para o CNPJ confirmado por você, depois do contato; venda só informada não pontua. O contato conta no dia em que foi <strong>registrado</strong> (data retroativa não monta sequência nem muda o mês). O lead é de quem fez o primeiro atendimento: os outros não registram nem pontuam nele. Níveis: Bronze, Prata (40), Ouro (100) e Diamante (200).</p>
+      </details>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endwith %}
+
+<section class="mp-kpis" aria-label="Números do mês">
+  <div class="mk-kpi mp-kpi"><span class="t">Empresas procuradas</span><span class="n">{{ k.abordados|intcomma }}</span><span class="d">{{ k.contatos|intcomma }} contato{{ k.contatos|pluralize }} registrado{{ k.contatos|pluralize }}</span></div>
+  <div class="mk-kpi mp-kpi"><span class="t">Conversaram</span><span class="n">{{ k.conversaram|intcomma }}</span><span class="d">{{ k.taxa_conversa }}% das procuradas</span></div>
+  <div class="mk-kpi mp-kpi"><span class="t">Sem resposta</span><span class="n">{{ k.sem_resposta|intcomma }}</span><span class="d">só tentativa, sem conversa</span></div>
+  <div class="mk-kpi mp-kpi"><span class="t">Orçamentos</span><span class="n">{{ k.orcamentos|intcomma }}</span><span class="d">R$ {{ k.valor_orcamentos|floatformat:2|intcomma }}</span></div>
+  <div class="mk-kpi mp-kpi forte"><span class="t">Vendas confirmadas (NF)</span><span class="n moeda">R$ {{ k.valor_nf|floatformat:2|intcomma }}</span><span class="d">{{ k.vendas_dias }} venda{{ k.vendas_dias|pluralize }} (dias de compra) · {{ k.notas_nf|intcomma }} nota{{ k.notas_nf|pluralize }}</span></div>
+</section>
+
+<div class="mp-grade">
+  <section class="card" aria-labelledby="t-dias">
+    <h2 id="t-dias" class="mk-tit" style="margin:0 0 8px;font-size:1.05rem">Empresas procuradas por dia</h2>
+    <p class="mp-leg"><span><i style="background:#21275A"></i>Conversou</span><span><i style="background:#c6cad8"></i>Só tentativa</span></p>
+    <div class="mp-barras" role="img" aria-label="Empresas procuradas por dia no mês">
+      {% for d in dias %}<div class="b" title="Dia {{ d.dia }}: {{ d.conversa }} conversa(s), {{ d.tentativa }} tentativa(s)"><i class="c" style="height:{{ d.alt_c }}%"></i><i class="tt" style="height:{{ d.alt_t }}%"></i></div>{% endfor %}
+    </div>
+    <div class="mp-eixo" aria-hidden="true">{% for d in dias %}<span>{% if d.dia == 1 or d.dia|divisibleby:5 %}{{ d.dia }}{% endif %}</span>{% endfor %}</div>
+  </section>
+
+  <div>
+    {% if atendendo %}
+    <section class="card" aria-labelledby="t-atend" style="margin-bottom:16px">
+      <h2 id="t-atend" class="mk-tit" style="margin:0 0 6px;font-size:1.05rem">Em atendimento agora</h2>
+      <ul class="mp-lista">{% for o in atendendo %}<li><a href="{% url 'carteira:registrar_abordagem' o.empresa_id %}">{{ o.empresa.nome_fantasia|default:o.empresa.nome }}</a><span class="mut peq">desde {{ o.em_atendimento_desde|date:"H:i" }}</span></li>{% endfor %}</ul>
+    </section>{% endif %}
+    <section class="card" aria-labelledby="t-ret">
+      <h2 id="t-ret" class="mk-tit" style="margin:0 0 6px;font-size:1.05rem">Retornos agendados</h2>
+      {% if retornos %}<ul class="mp-lista">{% for a in retornos %}
+        <li>{% if simulacao %}<span>{{ a.empresa.nome_fantasia|default:a.empresa.nome }}</span>{% else %}<a href="{% url 'carteira:registrar_abordagem' a.empresa_id %}?proximo={% url 'prospeccao:minha_performance' %}">{{ a.empresa.nome_fantasia|default:a.empresa.nome }}</a>{% endif %}
+          <span class="{% if a.data_retorno < hoje %}atrasado{% else %}mut{% endif %} peq">{{ a.data_retorno|date:"d/m" }}{% if a.data_retorno < hoje %} · atrasado{% endif %}</span></li>{% endfor %}</ul>
+      {% else %}<p class="mut peq" style="margin:0">Nenhum retorno pendente.</p>{% endif %}
+    </section>
+  </div>
+</div>
+<script>
+// "Regra de pontuação" fecha ao clicar fora ou com Esc
+(function () {
+  var r = document.querySelector(".mp-regra");
+  if (!r) return;
+  document.addEventListener("click", function (ev) { if (r.open && !r.contains(ev.target)) r.open = false; });
+  document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") r.open = false; });
+})();
+// números da disputa sobem até o valor (efeito curto; respeita quem prefere menos movimento)
+(function () {
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  document.querySelectorAll("[data-conta]").forEach(function (el) {
+    var fim = parseInt(el.getAttribute("data-conta"), 10) || 0, t0 = null, dur = 900;
+    if (fim < 2) return;
+    function passo(t) { t0 = t0 || t; var p = Math.min(1, (t - t0) / dur); el.textContent = Math.round(fim * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(passo); }
+    el.textContent = "0"; requestAnimationFrame(passo);
+  });
+})();
+</script>
+{% endblock %}

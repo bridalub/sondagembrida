@@ -1,0 +1,339 @@
+{% extends "carteira/base.html" %}
+{% load carteira_tags %}
+{% block title %}Registrar abordagem – {{ e.nome_fantasia|default:e.nome }}{% endblock %}
+{% block content %}
+<a class="voltar" href="{{ voltar }}">{% include "carteira/_icone.html" with nome="voltar" %}Voltar à empresa</a>
+<div class="page-head">
+  <div>
+    <h1>Registrar abordagem</h1>
+    <p class="lead"><strong>{{ e.nome_fantasia|default:e.razao_social|default:e.nome }}</strong>{% if e.cnpj %} · <span class="cnpj">{{ e.cnpj_formatado }}</span>{% endif %}{% if e.cidade %} · {{ e.cidade }}/{{ e.uf }}{% endif %}</p>
+  </div>
+</div>
+
+{% if e.nao_contatar %}<div class="faixa alerta" role="alert"><strong>Não contatar:</strong> {{ e.nao_contatar_motivo }}. Novas abordagens estão bloqueadas.</div>
+{% elif bloqueio %}<div class="faixa aviso" role="alert"><strong>Atenção:</strong> {{ bloqueio }}</div>{% endif %}
+{% if e.bloqueada_origem %}<div class="faixa alerta">Conta <strong>bloqueada</strong> no Protheus/Salesforce.</div>{% endif %}
+{% if op_lead and op_lead.em_atendimento_por_id == user.pk %}<div class="faixa info"><strong>Você está atendendo este lead.</strong> Os outros atendentes veem “em atendimento” e não registram contato até você salvar ou cancelar (a marcação vence sozinha em {{ minutos_trava }} min).</div>{% endif %}
+
+<div class="coluna-principal">
+<form method="post" class="card" enctype="multipart/form-data" novalidate>{% csrf_token %}
+  <input type="hidden" name="proximo" value="{{ voltar }}">
+  {% if form.errors %}
+  <div class="erro-resumo" role="alert">
+    <h2>Revise antes de salvar</h2>
+    <ul>
+      {% for err in form.non_field_errors %}<li>{{ err }}</li>{% endfor %}
+      {% for f in form %}{% if f.errors %}<li><a href="#campo-{{ f.name }}">{{ f.label }}: {{ f.errors|join:" " }}</a></li>{% endif %}{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <h2>1. O contato</h2>
+  <div class="form-grade">
+    {% include "prospeccao/_campo.html" with f=form.data_hora %}
+    {% include "prospeccao/_campo.html" with f=form.canal %}
+    {% include "prospeccao/_campo.html" with f=form.resultado largo=True %}
+  </div>
+
+  <section id="bloco-cnpj" class="ab-bloco" aria-labelledby="t-cnpj">
+    <h2 id="t-cnpj">2. Identificação do cliente</h2>
+    <div class="form-grade">
+      <div>
+      {% include "prospeccao/_campo.html" with f=form.cnpj_confirmado %}
+      {% if e.cnpj %}<div class="sugestao-cnpj" style="margin:-6px 0 8px">
+        <p class="peq mut" style="margin:0 0 6px">Encontrado na pesquisa: <strong class="cnpj">{{ e.cnpj_formatado }}</strong>. <strong>Pergunte ao cliente</strong> antes de confirmar: o CNPJ confirmado liga as notas fiscais (e a venda) a você. Se ele informar outro, digite o informado; os dois ficam associados à empresa.</p>
+        <button type="button" class="btn sec btn-mini" id="usar-cnpj" data-cnpj="{{ e.cnpj_formatado }}">O cliente confirmou este CNPJ</button>
+      </div>{% endif %}
+      {% with assoc=e.cnpjs_associados.all %}{% if assoc %}<p class="peq mut" style="margin:0 0 8px">Já associados: {% for c in assoc %}<span class="cnpj">{{ c.cnpj_formatado }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}{% endwith %}
+      </div>
+      <div class="form-campo check" id="campo-sem_cnpj" style="align-self:center">
+        <label for="{{ form.sem_cnpj.id_for_label }}">{{ form.sem_cnpj }} <span>{{ form.sem_cnpj.label }}</span></label>
+        <div class="ajuda">Use só quando o cliente não passou o CNPJ. Venda fechada sempre exige o CNPJ: sem ele a nota fiscal não é reconhecida.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="bloco-valores" class="ab-bloco" aria-labelledby="t-valores">
+    <h2 id="t-valores">3. Valores</h2>
+    <div class="form-grade">
+      {% include "prospeccao/_campo.html" with f=form.valor_orcamento %}
+      {% include "prospeccao/_campo.html" with f=form.valor_venda %}
+      {% include "prospeccao/_campo.html" with f=form.anexo_orcamento largo=True %}
+    </div>
+  </section>
+
+  <h2>Com quem você falou</h2>
+  <div class="form-grade">
+    {% include "prospeccao/_campo.html" with f=form.contato largo=True %}
+  </div>
+  <details class="ab-novo ab-destaque" id="nova-pessoa" {% if form.pessoa_nome.value or form.pessoa_nome.errors %}open{% endif %}>
+    <summary>{% include "carteira/_icone.html" with nome="pessoa" %}Cadastrar uma pessoa nova (nome, cargo, departamento, telefone, e-mail)</summary>
+    <div class="form-grade" style="margin-top:10px">
+      {% include "prospeccao/_campo.html" with f=form.pessoa_nome %}
+      {% include "prospeccao/_campo.html" with f=form.pessoa_cargo %}
+      {% include "prospeccao/_campo.html" with f=form.pessoa_departamento %}
+      {% include "prospeccao/_campo.html" with f=form.pessoa_telefone %}
+      {% include "prospeccao/_campo.html" with f=form.pessoa_email largo=True %}
+    </div>
+    <p class="peq mut" style="margin:0">A pessoa fica na ficha da empresa para os próximos contatos. O telefone e o e-mail dela também entram como contatos da empresa, com o departamento.</p>
+  </details>
+
+  <section class="ab-destaque ab-outros" aria-labelledby="t-outros">
+  <h3 id="t-outros" class="ab-destaque-tit">{% include "carteira/_icone.html" with nome="telefone" %}Outros telefones e e-mails da empresa</h3>
+  <p class="peq mut" style="margin:2px 0 10px">O cliente passou outro número ou e-mail (compras, manutenção, financeiro...)? Adicione quantos precisar.</p>
+  <div id="extras" class="ab-extras">
+    {% for x in extras_post %}
+    <div class="ab-extra">
+      <select name="extra_tipo" aria-label="Tipo"><option value="TELEFONE" {% if x.tipo == "TELEFONE" %}selected{% endif %}>Telefone</option><option value="EMAIL" {% if x.tipo == "EMAIL" %}selected{% endif %}>E-mail</option></select>
+      <input name="extra_valor" value="{{ x.valor }}" aria-label="Telefone ou e-mail" autocomplete="off">
+      <select name="extra_depto" aria-label="Departamento"><option value="">Departamento</option>{% for d in departamentos %}<option value="{{ d }}" {% if x.departamento == d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select>
+      <button type="button" class="icone-btn ab-remover" aria-label="Remover linha">{% include "carteira/_icone.html" with nome="fechar" %}</button>
+    </div>{% endfor %}
+  </div>
+  <template id="modelo-extra">
+    <div class="ab-extra">
+      <select name="extra_tipo" aria-label="Tipo"><option value="TELEFONE">Telefone</option><option value="EMAIL">E-mail</option></select>
+      <input name="extra_valor" placeholder="(11) 4002-8922" inputmode="tel" aria-label="Telefone ou e-mail" autocomplete="off">
+      <select name="extra_depto" aria-label="Departamento"><option value="">Departamento</option>{% for d in departamentos %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
+      <button type="button" class="icone-btn ab-remover" aria-label="Remover linha">{% include "carteira/_icone.html" with nome="fechar" %}</button>
+    </div>
+  </template>
+  <button type="button" class="btn sec btn-mini" id="add-extra" style="margin-bottom:6px">{% include "carteira/_icone.html" with nome="mais" %}Adicionar telefone ou e-mail</button>
+  </section>
+
+  <h2 style="margin-top:12px">O que foi conversado</h2>
+  <div class="form-grade">
+    {% include "prospeccao/_campo.html" with f=form.observacoes largo=True %}
+  </div>
+
+  <h2 style="margin-top:8px">Próximo passo</h2>
+  <div class="form-grade">
+    {% include "prospeccao/_campo.html" with f=form.proxima_acao %}
+    {% include "prospeccao/_campo.html" with f=form.data_retorno %}
+    {% if pendentes %}{% include "prospeccao/_campo.html" with f=form.concluir_pendentes largo=True %}
+    {% else %}<input type="hidden" name="concluir_pendentes" value="on">{% endif %}
+  </div>
+
+  {% if user.is_staff %}
+  <details class="avancado">
+    <summary>Exceção de gestor</summary>
+    {% include "prospeccao/_campo.html" with f=form.justificativa_excecao %}
+  </details>
+  {% endif %}
+
+  <p class="peq mut" style="margin-top:12px">“Pediu para não ser contatado” marca a empresa como “não contatar”. Abrir a empresa, copiar contatos ou incluir em lista não conta como abordagem.</p>
+  <div class="barra-salvar">
+    {% if op_lead and op_lead.em_atendimento_por_id == user.pk %}
+    <button type="submit" class="btn ghost" formaction="{% url 'prospeccao:atendimento' op_lead.pk %}" name="acao" value="liberar" formnovalidate>Cancelar e liberar o lead</button>
+    {% else %}<a class="btn ghost" href="{{ voltar }}">Cancelar</a>{% endif %}
+    {% if motivos_desclassificar %}<button type="button" class="btn ghost desclass-btn" id="abrir-desclass">{% include "carteira/_icone.html" with nome="fechar" %}Desclassificar lead</button>{% endif %}
+    <button type="submit" {% if e.nao_contatar %}disabled{% endif %}>{% include "carteira/_icone.html" with nome="ok" %}Salvar abordagem</button>
+  </div>
+</form>
+
+{% if motivos_desclassificar %}
+<dialog id="dlg-desclass" class="desclass-dlg" aria-labelledby="t-desclass">
+  <form method="post" action="{% url 'prospeccao:desclassificar' op_lead.pk %}">{% csrf_token %}
+    <h2 id="t-desclass">Desclassificar este lead</h2>
+    <p class="peq mut">Use para lead ruim. Ele <strong>sai da lista</strong> e fica desclassificado com a sua justificativa. Não conta pontos. Um ADMIN pode reabrir.</p>
+    <label for="d-motivo">Motivo <span class="obrig">obrigatório</span></label>
+    <select id="d-motivo" name="motivo" required><option value="">Selecione o motivo</option>
+      {% for m in motivos_desclassificar %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select>
+    <label for="d-just" style="margin-top:10px">Justificativa <span class="obrig">obrigatório</span></label>
+    <textarea id="d-just" name="justificativa" rows="3" required minlength="10" placeholder="O que você verificou. Ex.: liguei e é uma residência; o CNPJ é de loja de brinquedos."></textarea>
+    <div class="acoes" style="margin-top:14px;justify-content:flex-end">
+      <button type="button" class="btn ghost" id="fechar-desclass">Voltar</button>
+      <button type="submit" class="btn perigo">Desclassificar lead</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+<aside>
+  {% if jogo_regras %}
+  <section class="card gm-dica" aria-labelledby="t-jogo" id="dica-pontos">
+    <h2 id="t-jogo">Disputa do mês</h2>
+    <p class="gm-dica-pts" id="dica-pts">Escolha o resultado para ver os pontos.</p>
+    <ul class="gm-dica-req" id="dica-req"></ul>
+    <p class="peq mut" style="margin:6px 0 0">Cada lead vale a etapa mais alta que alcançou no mês; o orçamento soma à venda quando o cliente compra.</p>
+  </section>
+  {% endif %}
+  <section class="card" aria-labelledby="t-contatos">
+    <h2 id="t-contatos">Contatos da empresa</h2>
+    {% include "prospeccao/_contato_linha.html" with tipo="telefone" valor=contato.telefone nivel=contato.telefone_nivel alerta=contato.telefone_alerta whatsapp=contato.whatsapp rotulo_empresa=e.nome %}
+    {% include "prospeccao/_contato_linha.html" with tipo="email" valor=contato.email nivel=contato.email_nivel alerta=contato.email_alerta whatsapp="" rotulo_empresa=e.nome %}
+    {% if canais|length > 2 %}
+    <details style="margin-top:6px"><summary class="peq" style="cursor:pointer;color:var(--azul);font-weight:650">Todos os telefones e e-mails ({{ canais|length }})</summary>
+      <ul class="mp-lista" style="list-style:none;margin:6px 0 0;padding:0">{% for c in canais %}
+        <li class="peq" style="padding:4px 0;border-bottom:1px solid var(--bd)">{% if c.tipo == "TELEFONE" %}<a href="{{ c.valor|tel_href }}">{{ c.valor }}</a>{% else %}<a class="email" href="mailto:{{ c.valor }}">{{ c.valor }}</a>{% endif %}
+          {% if c.departamento %}<span class="canal-depto">{{ c.departamento }}</span>{% elif c.classificacao != "INCERTO" %}<span class="canal-depto">{{ c.get_classificacao_display }}</span>{% endif %}</li>{% endfor %}</ul>
+    </details>{% endif %}
+    {% with pessoas=e.contatos.all %}{% if pessoas %}<h3 class="peq" style="margin:12px 0 4px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px">Pessoas</h3>{% endif %}
+    {% for p in pessoas %}{% if p.ativo %}<div class="contato-item"><strong>{{ p.nome }}</strong>{% if p.cargo %} <span class="mut">· {{ p.cargo }}</span>{% endif %}{% if p.departamento %} <span class="canal-depto">{{ p.departamento }}</span>{% endif %}
+      <div class="peq">{% if p.telefone or p.celular %}<a href="{{ p.telefone|default:p.celular|tel_href }}">{{ p.telefone|default:p.celular }}</a>{% endif %}{% if p.email %} · <a class="email" href="mailto:{{ p.email }}">{{ p.email }}</a>{% endif %}</div></div>{% endif %}{% endfor %}{% endwith %}
+  </section>
+  <section class="card" aria-labelledby="t-hist">
+    <h2 id="t-hist">Histórico recente</h2>
+    {% if historico %}
+    <ul class="historico">{% for a in historico %}
+      <li class="{% if a.houve_conversa %}conversa{% endif %}"><div class="quando">{{ a.data_hora|date:"d/m/Y H:i" }} · {{ a.usuario }} · {{ a.get_canal_display }}</div>
+        <span class="tag {% if a.houve_conversa %}CONVERSA_REALIZADA{% else %}TENTATIVA_SEM_RESPOSTA{% endif %}">{{ a.get_resultado_display }}</span>
+        {% if a.proxima_acao %}<div class="peq">{{ a.proxima_acao }}{% if a.data_retorno %} – {{ a.data_retorno|date:"d/m/Y" }}{% endif %}</div>{% endif %}
+        {% if a.anexo_orcamento %}<div class="peq"><a href="{% url 'carteira:anexo_orcamento' a.pk %}" target="_blank" rel="noopener">Orçamento anexado{% if a.valor_orcamento %} (R$ {{ a.valor_orcamento|floatformat:2 }}){% endif %}</a></div>{% endif %}</li>
+    {% endfor %}</ul>
+    {% else %}<p class="mut">Primeira abordagem desta empresa.</p>{% endif %}
+  </section>
+</aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<style>
+  .ab-bloco { border-top: 1px solid var(--bd); margin-top: 6px; padding-top: 6px; }
+  .ab-bloco[hidden], .form-campo[hidden] { display: none !important; }
+  .ab-novo { margin: 4px 0 6px; }
+  .ab-novo summary { cursor: pointer; font-weight: 700; color: var(--azul); display: flex; align-items: center; gap: 8px; list-style: none; }
+  .ab-novo summary::-webkit-details-marker { display: none; }
+  .ab-novo summary::after { content: "+"; margin-left: auto; flex: 0 0 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--laranja); color: #fff; font-weight: 800; font-size: 18px; line-height: 1; }
+  .ab-novo[open] summary::after { content: "−"; }
+  .ab-novo summary svg, .ab-destaque-tit svg { width: 18px; height: 18px; color: var(--laranja); flex: none; }
+  /* blocos a preencher: borda laranja da marca para chamar atenção */
+  .ab-destaque { border: 2px solid var(--laranja); border-radius: 12px; padding: 12px 16px; background: #fff8f3;
+    box-shadow: 0 4px 14px -8px rgba(238,102,47,.45); transition: box-shadow .15s, background .15s; }
+  .ab-destaque:hover, .ab-destaque:focus-within, .ab-destaque[open] { background: #fff; box-shadow: 0 0 0 4px rgba(238,102,47,.14); }
+  .ab-outros { margin: 14px 0 6px; container-type: inline-size; }
+  @container (max-width: 560px) {  /* caixa estreita: o número ocupa a linha toda, tipo e departamento embaixo */
+    .ab-extra { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; }
+    .ab-extra input { grid-column: 1 / -1; grid-row: 1; }
+  }
+  .ab-destaque-tit { margin: 0; font-size: 1rem; color: var(--azul); display: flex; align-items: center; gap: 8px; }
+  .ab-extras { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+  .ab-extra { display: grid; grid-template-columns: 130px minmax(0, 1fr) 190px 40px; gap: 8px; align-items: center; }
+  @media (max-width: 700px) { .ab-extra { grid-template-columns: 1fr 1fr 40px; } .ab-extra input { grid-column: 1 / -1; grid-row: 1; } }
+  .desclass-btn { color: #b42318 !important; }
+  .desclass-dlg { border: 0; border-radius: var(--raio); padding: 20px 22px; width: min(92vw, 520px); box-shadow: 0 20px 60px rgba(10, 20, 50, .3); }
+  .desclass-dlg::backdrop { background: rgba(15, 25, 60, .45); }
+  .desclass-dlg h2 { margin: 0 0 6px; }
+  .desclass-dlg label { display: block; font-weight: 650; margin-bottom: 4px; }
+  .desclass-dlg select, .desclass-dlg textarea { width: 100%; }
+  .gm-dica { border-top: 4px solid var(--laranja); }
+  .gm-dica h2 { margin: 0 0 4px; }
+  .gm-dica-pts { margin: 0 0 6px; font-size: 1.05rem; font-weight: 750; color: var(--azul-900); }
+  .gm-dica-req { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  .gm-dica-req li { padding: 3px 0 3px 20px; position: relative; }
+  .gm-dica-req li::before { content: "○"; position: absolute; left: 2px; color: var(--mut); }
+  .gm-dica-req li.ok::before { content: "✓"; color: #1a7f4b; font-weight: 800; }
+  .canal-depto { font-size: 11.5px; font-weight: 650; color: var(--azul-900); background: var(--azul-50); border-radius: 999px; padding: 1px 8px; }
+</style>
+<script>
+(function () {
+  var res = document.getElementById("id_resultado");
+  if (!res) return;
+  var TENTATIVA = ["SEM_RESPOSTA", "RECADO", "CONTATO_INVALIDO"];
+  var IDENTIFICA = ["CONVERSA_INTERESSE", "CONVERSA_RETORNAR", "CONVERSA_SEM_INTERESSE", "CONVERSA_ORCAMENTO", "CONVERSA_VENDA"];
+  var bCnpj = document.getElementById("bloco-cnpj"), bVal = document.getElementById("bloco-valores");
+  var cOrc = document.getElementById("campo-valor_orcamento"), cVen = document.getElementById("campo-valor_venda");
+  var cSem = document.getElementById("campo-sem_cnpj"), cnpj = document.getElementById("id_cnpj_confirmado");
+  var sem = document.getElementById("id_sem_cnpj"), cRet = document.getElementById("campo-data_retorno");
+  // desclassificar lead: janela com motivo e justificativa
+  var dlg = document.getElementById("dlg-desclass"), abrirD = document.getElementById("abrir-desclass");
+  if (dlg && abrirD) {
+    abrirD.addEventListener("click", function () { dlg.showModal(); document.getElementById("d-motivo").focus(); });
+    document.getElementById("fechar-desclass").addEventListener("click", function () { dlg.close(); });
+  }
+  // outros telefones/e-mails: linhas adicionadas e removidas na hora
+  var extras = document.getElementById("extras"), modelo = document.getElementById("modelo-extra");
+  var addExtra = document.getElementById("add-extra");
+  if (addExtra && extras && modelo) {
+    addExtra.addEventListener("click", function () {
+      extras.appendChild(modelo.content.cloneNode(true));
+      var campos = extras.querySelectorAll('input[name="extra_valor"]');
+      if (campos.length) campos[campos.length - 1].focus();
+    });
+    extras.addEventListener("click", function (ev) {
+      var b = ev.target.closest(".ab-remover");
+      if (b) b.closest(".ab-extra").remove();
+    });
+    extras.addEventListener("change", function (ev) {  // e-mail ou telefone: o teclado e o exemplo acompanham
+      if (ev.target.name !== "extra_tipo") return;
+      var inp = ev.target.closest(".ab-extra").querySelector('input[name="extra_valor"]');
+      var email = ev.target.value === "EMAIL";
+      inp.type = email ? "email" : "text"; inp.inputMode = email ? "email" : "tel";
+      inp.placeholder = email ? "compras@empresa.com.br" : "(11) 4002-8922";
+    });
+  }
+  // escolheu alguém da lista: fecha o cadastro de pessoa nova (e vice-versa)
+  var selPessoa = document.getElementById("id_contato"), nova = document.getElementById("nova-pessoa");
+  if (selPessoa && nova) {
+    selPessoa.addEventListener("change", function () { if (selPessoa.value) nova.open = false; });
+    nova.addEventListener("toggle", function () { if (nova.open) selPessoa.value = ""; });
+  }
+  var usar = document.getElementById("usar-cnpj");
+  if (usar && cnpj) usar.addEventListener("click", function () {  // confirmação explícita do CNPJ encontrado
+    cnpj.value = usar.getAttribute("data-cnpj"); if (sem) { sem.checked = false; } cnpj.disabled = false;
+    cnpj.dispatchEvent(new Event("input", {bubbles: true})); cnpj.focus();
+  });
+  function obrig(campo, sim) {
+    if (!campo) return;
+    var label = campo.querySelector("label"), m = label && label.querySelector(".obrig.din");
+    if (sim && !m && label) { m = document.createElement("span"); m.className = "obrig din"; m.textContent = "obrigatório"; label.appendChild(m); }
+    if (!sim && m) m.remove();
+    var input = campo.querySelector("input, select, textarea");
+    if (input) input.setAttribute("aria-required", sim ? "true" : "false");
+  }
+  function atualiza() {
+    var v = res.value, conversaComercial = IDENTIFICA.indexOf(v) >= 0;
+    // CNPJ sempre visível e editável; some só na tentativa (não houve conversa) e em "não contatar"
+    bCnpj.hidden = TENTATIVA.indexOf(v) >= 0 || v === "CONVERSA_NAO_CONTATAR";
+    var temValor = v === "CONVERSA_ORCAMENTO" || v === "CONVERSA_VENDA";
+    bVal.hidden = !temValor;
+    cOrc.hidden = !temValor;
+    cVen.hidden = v !== "CONVERSA_VENDA";
+    cSem.hidden = v === "CONVERSA_VENDA";
+    if (v === "CONVERSA_VENDA" && sem) sem.checked = false;
+    var semCnpj = sem && sem.checked && v !== "CONVERSA_VENDA";
+    if (cnpj) { cnpj.disabled = !!semCnpj; }
+    obrig(document.getElementById("campo-cnpj_confirmado"), conversaComercial && !semCnpj);
+    obrig(cOrc, v === "CONVERSA_ORCAMENTO");
+    var cAnexo = document.getElementById("campo-anexo_orcamento");
+    if (cAnexo) { cAnexo.hidden = !temValor; obrig(cAnexo, v === "CONVERSA_ORCAMENTO"); }
+    obrig(cVen, false);
+    obrig(cRet, v === "CONVERSA_RETORNAR");
+  }
+  res.addEventListener("change", atualiza);
+  // Disputa do mês: pontos e requisitos do resultado escolhido, conferidos enquanto preenche
+  var dPts = document.getElementById("dica-pts"), dReq = document.getElementById("dica-req");
+  var vOrc = document.getElementById("id_valor_orcamento"), fOrc = document.getElementById("id_anexo_orcamento");
+  function dica() {
+    if (!dPts) return;
+    var v = res.value, itens = [], pts = "";
+    var temCnpj = cnpj && cnpj.value.replace(/\D/g, "").length === 14;
+    if (!v) { dPts.textContent = "Escolha o resultado para ver os pontos."; dReq.innerHTML = ""; return; }
+    if (TENTATIVA.indexOf(v) >= 0 || v === "CONVERSA_NAO_CONTATAR") {
+      pts = "1 ponto (empresa procurada)"; itens.push([true, "Contato registrado neste lead"]);
+    } else if (v === "CONVERSA_ORCAMENTO") {
+      pts = "4 pontos (orçamento enviado)";
+      itens.push([!!(vOrc && vOrc.value.trim()), "Valor do orçamento"]);
+      itens.push([!!(fOrc && fOrc.files && fOrc.files.length), "Arquivo do orçamento anexado (sem ele, não pontua)"]);
+      itens.push([temCnpj || (sem && sem.checked), "CNPJ confirmado (ou cliente não informou)"]);
+    } else if (v === "CONVERSA_VENDA") {
+      pts = "30 pontos quando a nota fiscal chegar";
+      itens.push([temCnpj, "CNPJ confirmado com o cliente (liga a nota fiscal à venda)"]);
+      itens.push([true, "Nota fiscal do Salesforce: entra na sincronização de hora em hora"]);
+      itens.push([true, "Só conta para cliente novo, sem compra ou inativo"]);
+    } else {
+      pts = "3 pontos (conversa efetiva)";
+      itens.push([temCnpj || (sem && sem.checked), "CNPJ confirmado (ou cliente não informou)"]);
+    }
+    dPts.textContent = pts;
+    dReq.innerHTML = "";
+    itens.forEach(function (it) { var li = document.createElement("li"); li.textContent = it[1];
+      if (it[0]) li.className = "ok"; dReq.appendChild(li); });
+  }
+  [res, vOrc, fOrc, cnpj, sem].forEach(function (el) { if (el) { el.addEventListener("change", dica); el.addEventListener("input", dica); } });
+  dica();
+  if (sem) sem.addEventListener("change", atualiza);
+  atualiza();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "carteira/base.html" %}
+{% block title %}Parâmetros e orçamento{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Configurações</h1>
+    <p class="lead">Tetos de gasto das chamadas pagas (IA e busca web) e regras de abordagem. Os valores são controlados pelo programa e editados por gestores no cadastro técnico.</p>
+  </div>
+  {% if user.is_staff %}<div class="acoes"><a class="btn sec" href="{% url 'admin:carteira_configuracaoanalise_changelist' %}">Editar regras de abordagem</a></div>{% endif %}
+</div>
+<nav class="atalhos-gestao" aria-label="Atalhos de gestão">
+  <a class="btn sec btn-mini" href="{% url 'prospeccao:frentes' %}">Frentes comerciais</a>
+  {% if user.is_staff %}<a class="btn sec btn-mini" href="{% url 'admin:index' %}">Administração</a>{% endif %}
+</nav>
+
+<div class="grid">
+  <div class="card kpi"><span class="t">Teto geral da aplicação</span><span class="n" style="font-size:1.5rem">{% if teto_global is not None %}US$ {{ teto_global }}{% else %}—{% endif %}</span>
+    <span class="def">{% if teto_global is not None %}Soma de todas as chamadas pagas registradas nesta aplicação.{% else %}Não configurado. Cada pesquisa ainda respeita o próprio teto.{% endif %}</span></div>
+  <div class="card kpi"><span class="t">Gasto registrado</span><span class="n" style="font-size:1.5rem">US$ {{ gasto_global|floatformat:4 }}</span>
+    <span class="def">Custo medido das chamadas já feitas{% if reservado_global %}, mais US$ {{ reservado_global|floatformat:4 }} reservado em andamento{% endif %}.</span></div>
+  <div class="card kpi"><span class="t">IA</span><span class="def" style="font-size:14px;color:var(--tx)">{{ ia_status.1 }}{% if ia_status.0 and ia_modelo %} · modelo {{ ia_modelo }}{% endif %}</span></div>
+</div>
+
+<section class="card" aria-labelledby="t-pq">
+  <h2 id="t-pq">Teto por pesquisa</h2>
+  <p class="peq">Teto acumulado (planejamento + todas as execuções). <strong>Sem teto, nenhuma chamada paga é feita</strong>: a busca usa só as fontes gratuitas e registra a pendência.</p>
+  {% if pesquisas_orc %}
+  <div class="tabela"><table>
+    <tr><th>Pesquisa</th><th>Teto</th><th>Registrado</th><th>Limites de chamadas por execução</th>{% if user.is_staff %}<th></th>{% endif %}</tr>
+    {% for r in pesquisas_orc %}<tr>
+      <td><a href="{% url 'prospeccao:pesquisa_detalhe' r.p.pk %}">{{ r.p.nome }}</a></td>
+      <td>{% if r.p.teto_custo_usd is not None %}US$ {{ r.p.teto_custo_usd }}{% else %}<span class="tag contorno">sem teto – nada pago</span>{% endif %}</td>
+      <td>US$ {{ r.gasto|floatformat:4 }}{% if r.reservado %} <span class="mut peq">(+{{ r.reservado|floatformat:4 }} reservado)</span>{% endif %}</td>
+      <td class="peq">IA: até {{ r.p.ia_max_chamadas }} · busca web: {{ r.p.max_buscas_web_empresa }}/empresa, {{ r.p.max_buscas_descoberta }}/frente · {{ r.p.max_paginas_site }} páginas por site</td>
+      {% if user.is_staff %}<td><a class="btn sec btn-mini" href="{% url 'admin:prospeccao_pesquisa_change' r.p.pk %}">Editar teto</a></td>{% endif %}
+    </tr>{% endfor %}
+  </table></div>
+  {% else %}<p class="mut">Nenhuma pesquisa cadastrada.</p>{% endif %}
+  <details class="peq"><summary>Como o teto funciona</summary>
+    <p style="margin-top:8px">Antes de cada chamada paga, o custo máximo previsto é reservado no banco. A chamada só sai se couber no teto da pesquisa e no teto geral. Depois, o custo medido é registrado. A reserva é uma estimativa conservadora: o conteúdo lido pela busca web não tem limite técnico, então uma chamada em andamento pode ultrapassar o teto; o excesso é registrado e bloqueia as chamadas seguintes. Para um limite absoluto, configure também o limite de orçamento no painel do provedor.</p>
+  </details>
+</section>
+
+<section class="card" aria-labelledby="t-ab">
+  <h2 id="t-ab">Regras de abordagem e de análise</h2>
+  <dl class="dados">
+    <dt>Intervalo mínimo entre tentativas</dt><dd>{% if cfg.dias_minimos_nova_tentativa %}{{ cfg.dias_minimos_nova_tentativa }} dia(s){% else %}sem restrição{% endif %}</dd>
+    <dt>Máximo de tentativas sem conversa</dt><dd>{% if cfg.max_tentativas_sem_resposta %}{{ cfg.max_tentativas_sem_resposta }}{% else %}sem restrição{% endif %} <span class="mut peq">(gestor pode registrar exceção com justificativa)</span></dd>
+    <dt>Validade do cruzamento com o Salesforce</dt><dd>{{ cfg.horas_validade_cruzamento }} h</dd>
+    <dt>Comprador inativo após</dt><dd>{% if cfg.dias_inatividade %}{{ cfg.dias_inatividade }} dias sem compra{% else %}não definido{% endif %}</dd>
+    <dt>Execução recorrente das pesquisas</dt><dd>{% if cfg.agendamento_ativo %}<span class="tag ok">ligada</span>{% else %}<span class="tag contorno">desligada</span> – só execução manual{% endif %}</dd>
+    <dt>“Não contatar”</dt><dd>bloqueia novas abordagens, sem exceção</dd>
+  </dl>
+</section>
+{% if request.user.is_staff %}
+<section class="card" aria-labelledby="t-limpar">
+  <h2 id="t-limpar">Limpar o sistema</h2>
+  <p class="peq">Apaga os resultados da prospecção. A carteira Salesforce local só é apagada se for marcada à parte.
+    Mantém os logins, os leads já contatados, a base Receita, as pesquisas e os registros de custo. Grava uma cópia antes.</p>
+  <a class="btn" href="{% url 'prospeccao:limpar_resultados' %}">Limpar o sistema…</a>
+</section>
+{% endif %}
+{% endblock %}

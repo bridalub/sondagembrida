@@ -1,0 +1,16 @@
+{% extends "carteira/base.html" %}
+{% block title %}Revisão cadastral{% endblock %}
+{% block content %}
+<h1>Registros que precisam de revisão ({{ total }})</h1>
+<p class="mut">Não há associação automática por semelhança de nome. Corrija o CNPJ na origem (Salesforce); a próxima importação reavalia.</p>
+<div class="tabela"><table>
+  <tr><th>Empresa</th><th>Account Id</th><th>CNPJ na origem</th><th>Motivo</th></tr>
+  {% for e in pagina %}
+  <tr><td><a href="{% url 'carteira:empresa_detalhe' e.pk %}">{{ e.nome }}</a></td><td>{{ e.salesforce_id|default:"—" }}</td>
+    <td>{{ e.cnpj_origem|default:"(vazio)" }}</td><td>{{ e.motivo_revisao }}</td></tr>
+  {% empty %}<tr><td colspan="4" class="mut">Nada para revisar.</td></tr>{% endfor %}
+</table></div>
+<div class="pag">{% if pagina.has_previous %}<a href="?page={{ pagina.previous_page_number }}">« anterior</a>{% endif %}
+  página {{ pagina.number }} de {{ pagina.paginator.num_pages }}
+  {% if pagina.has_next %}<a href="?page={{ pagina.next_page_number }}">próxima »</a>{% endif %}</div>
+{% endblock %}

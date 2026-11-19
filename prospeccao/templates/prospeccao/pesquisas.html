@@ -1,0 +1,56 @@
+{% extends "carteira/base.html" %}
+{% load humanize %}
+{% block title %}Pesquisas{% endblock %}
+{% block content %}
+<header class="pq-cab">
+  <div>
+    <h1>Pesquisas de leads</h1>
+    <p class="lead">Cada pesquisa diz onde e quem procurar. Abra uma pesquisa e clique em <strong>Buscar novos leads</strong>.</p>
+  </div>
+  <div class="pq-acoes">
+    <a class="btn sec" href="{% url 'prospeccao:execucoes' %}">Histórico de buscas</a>
+    <a class="btn sec" href="{% url 'prospeccao:revisao' %}">Possíveis correspondências</a>
+    {% if user.is_staff %}<a class="btn btn-grande" href="{% url 'prospeccao:pesquisa_nova' %}">{% include "carteira/_icone.html" with nome="mais" %}Nova pesquisa</a>{% endif %}
+  </div>
+</header>
+
+{% if itens %}
+<div class="pq-cards">
+  {% for r in itens %}{% with p=r.p %}
+  <article class="card pq-cartao" aria-labelledby="pq-{{ p.pk }}">
+    <div class="pq-card-cab">
+      <h2 id="pq-{{ p.pk }}"><a href="{% url 'prospeccao:pesquisa_detalhe' p.pk %}">{{ p.nome }}</a></h2>
+      {% if not p.ativa %}<span class="chip pausa">Pausada</span>
+      {% elif r.ult and r.ult.ativa %}<span class="tag EXECUTANDO">Buscando agora</span>
+      {% elif r.ult %}<span class="tag {{ r.ult.status }}">{{ r.ult.get_status_display }}</span>
+      {% else %}<span class="chip">Ainda não buscou</span>{% endif %}
+    </div>
+    <div class="chips">
+      <span class="chip" title="{{ p.cidades }}">{{ r.n_cidades }} município{{ r.n_cidades|pluralize }} · {{ p.uf }}</span>
+      <span class="chip" title="{% for f in p.frentes.all %}{{ f.nome }}{% if not forloop.last %}, {% endif %}{% endfor %}">{{ p.frentes.count }} perfi{{ p.frentes.count|pluralize:"l,s" }} de cliente</span>
+    </div>
+    <div class="pq-cartao-meta">
+      <div class="linha-meta"><span><b>{{ r.completos }}</b> de {{ r.meta }} leads completos</span><span class="mut">{{ r.pct }}%</span></div>
+      <div class="pq-barra" role="img" aria-label="{{ r.pct }}% da meta"><span style="width:{{ r.pct }}%"></span></div>
+    </div>
+    <dl class="pq-cartao-nums">
+      <div><dt>Encontradas</dt><dd>{{ r.painel.novos_encontrados|default:p.n_cand|intcomma }}</dd></div>
+      <div><dt>Com CNPJ</dt><dd>{{ r.painel.identificadas|default:"—" }}</dd></div>
+      <div><dt>Oportunidades</dt><dd><a href="{% url 'prospeccao:oportunidades' %}?pesquisa={{ p.pk }}&amp;etapa=todas&amp;escopo=todos">{{ p.n_op|intcomma }}</a></dd></div>
+    </dl>
+    <div class="pq-cartao-rodape">
+      <span class="mut peq">{% if r.ult %}Última busca {{ r.ult.criada_em|date:"d/m H:i" }}{% else %}Sem buscas{% endif %}</span>
+      <a class="btn sec btn-mini" href="{% url 'prospeccao:pesquisa_detalhe' p.pk %}">Abrir</a>
+    </div>
+    {% if r.proximo %}<p class="pq-nota" style="margin:0"><strong>Próximo passo:</strong> <a href="{{ r.proximo_url }}">{{ r.proximo }}</a></p>{% endif %}
+  </article>
+  {% endwith %}{% endfor %}
+</div>
+{% else %}
+<div class="card vazio">
+  <h2>Nenhuma pesquisa criada</h2>
+  <p>Escolha os municípios, os perfis de cliente e quantos leads você quer.</p>
+  <div class="acoes">{% if user.is_staff %}<a class="btn" href="{% url 'prospeccao:pesquisa_nova' %}">Criar a primeira pesquisa</a>{% else %}<span>Somente gestores criam pesquisas. Peça a um gestor.</span>{% endif %}</div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,89 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Prospecção{% endblock %} · Brida</title>
+<link rel="icon" href="{% static 'brida/img/marca-b.png' %}">
+{% include "carteira/_estilos.html" %}
+{% block head_extra %}{% endblock %}
+</head>
+<body class="{% if user.is_authenticated %}app{% else %}login-pg{% endif %}">
+<script>try { if (localStorage.getItem("brida-nav") === "1") document.body.classList.add("nav-recolhida"); } catch (e) {}</script>
+<a class="skip" href="#conteudo">Ir para o conteúdo</a>
+{% if user.is_authenticated %}
+{% with n=request.resolver_match.url_name ns=request.resolver_match.namespace %}
+<header class="topbar">
+  <button type="button" class="btn-menu" id="btn-menu" aria-controls="nav-principal" aria-expanded="false">
+    {% include "carteira/_icone.html" with nome="menu" %}<span>Menu</span></button>
+  <img class="nav-logo" src="{% static 'brida/img/logo-brida-negativo.svg' %}" alt="Brida Distribuidora" width="62" height="28">
+  <span class="topbar-titulo" id="topbar-titulo"></span>
+</header>
+<button type="button" class="nav-fundo" id="nav-fundo" tabindex="-1" aria-label="Fechar menu"></button>
+<nav class="nav" id="nav-principal" aria-label="Menu principal">
+  <div class="nav-topo">
+    <a href="{% url 'prospeccao:visao_geral' %}" aria-label="Brida – Visão geral" style="display:flex">
+      <img class="nav-logo" src="{% static 'brida/img/logo-brida-negativo.svg' %}" alt="Brida Distribuidora" width="75" height="34">
+      <img class="nav-marca" src="{% static 'brida/img/marca-b-negativo.svg' %}" alt="Brida" width="23" height="34">
+    </a>
+    <button type="button" class="nav-recolher" id="btn-recolher" aria-controls="nav-principal" aria-expanded="true" aria-label="Recolher menu" title="Recolher menu">
+      {% include "carteira/_icone.html" with nome="recolher" %}</button>
+  </div>
+
+  {% if not eh_adm %}
+  <div class="nav-grupo" id="grp-insight">Insight Sales</div>
+  <div role="group" aria-labelledby="grp-insight">
+  <a class="nav-item {% if n == 'insight_sales' or n == 'empresa' or n == 'registrar_abordagem' %}ativo{% endif %}" href="{% url 'prospeccao:insight_sales' %}" title="Insight Sales" {% if n == 'insight_sales' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="lista" %}<span>Insight Sales</span></a>
+  <a class="nav-item {% if n == 'minha_performance' %}ativo{% endif %}" href="{% url 'prospeccao:minha_performance' %}" title="Minha performance" {% if n == 'minha_performance' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="frentes" %}<span>Minha performance</span></a>
+  <a class="nav-item {% if n == 'retornos' %}ativo{% endif %}" href="{% url 'carteira:retornos' %}" title="Acompanhar retornos" {% if n == 'retornos' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="retorno" %}<span>Acompanhar retornos</span></a>
+  </div>
+  <div class="nav-sep" aria-hidden="true"></div>
+  <div class="nav-grupo" id="grp-carteira-is">Carteira Salesforce</div>
+  <div role="group" aria-labelledby="grp-carteira-is">
+  <a class="nav-item {% if ns == 'carteira' and n == 'empresas' or n == 'empresa_detalhe' %}ativo{% endif %}" href="{% url 'carteira:empresas' %}" title="Empresas já conhecidas" {% if ns == 'carteira' and n == 'empresas' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="clientes" %}<span>Empresas já conhecidas</span></a>
+  </div>
+  {% else %}
+  <div class="nav-grupo" id="grp-trabalho">Prospecção</div>
+  <div role="group" aria-labelledby="grp-trabalho">
+  <a class="nav-item {% if ns == 'prospeccao' and n == 'visao_geral' %}ativo{% endif %}" href="{% url 'prospeccao:visao_geral' %}" title="Visão geral" {% if ns == 'prospeccao' and n == 'visao_geral' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="inicio" %}<span>Visão geral</span></a>
+  <a class="nav-item {% if n == 'insight_sales' or n == 'minha_performance' %}ativo{% endif %}" href="{% url 'prospeccao:insight_sales' %}" title="Insight Sales" {% if n == 'insight_sales' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="lista" %}<span>Insight Sales</span></a>
+  <a class="nav-item {% if n == 'captacao' %}ativo{% endif %}" href="{% url 'prospeccao:captacao' %}" title="Painel de captação" {% if n == 'captacao' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="frentes" %}<span>Painel de captação</span></a>  <a class="nav-item {% if n == 'pesquisa_nova' or n == 'pesquisa_editar' %}ativo{% endif %}" href="{% if user.is_staff %}{% url 'prospeccao:pesquisa_nova' %}{% else %}{% url 'prospeccao:pesquisas' %}{% endif %}" title="Buscar novos leads" {% if n == 'pesquisa_nova' or n == 'pesquisa_editar' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="buscar" %}<span>Buscar novos leads</span></a>
+  <a class="nav-item {% if n == 'oportunidades' or n == 'empresa' or n == 'oportunidade' %}ativo{% endif %}" href="{% url 'prospeccao:oportunidades' %}?etapa=sem_abordagem" title="Meus leads" {% if n == 'oportunidades' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="alvo" %}<span>Meus leads</span></a>
+  <a class="nav-item {% if n == 'retornos' %}ativo{% endif %}" href="{% url 'carteira:retornos' %}" title="Retornos" {% if n == 'retornos' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="retorno" %}<span>Retornos</span></a>
+  </div>
+
+  <div class="nav-sep" aria-hidden="true"></div>
+  <div class="nav-grupo" id="grp-carteira">Carteira Salesforce</div>
+  <div role="group" aria-labelledby="grp-carteira">
+  <a class="nav-item {% if ns == 'carteira' and n == 'empresas' or ns == 'carteira' and n == 'visao_geral' or n == 'empresa_detalhe' or ns == 'carteira' and n == 'revisao' or n == 'novas_abordagens' or n == 'listas' or n == 'lista_detalhe' %}ativo{% endif %}" href="{% url 'carteira:empresas' %}" title="Empresas já conhecidas" {% if ns == 'carteira' and n == 'empresas' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="clientes" %}<span>Empresas já conhecidas</span></a>
+  </div>
+
+  <div class="nav-sep" aria-hidden="true"></div>
+  <div class="nav-grupo" id="grp-gestao">Gestão</div>
+  <div role="group" aria-labelledby="grp-gestao">
+  <a class="nav-item {% if n == 'pesquisas' or n == 'pesquisa_detalhe' or n == 'plano' or n == 'lista' or n == 'execucoes' or n == 'execucao_detalhe' %}ativo{% endif %}" href="{% url 'prospeccao:pesquisas' %}" title="Pesquisas e execuções" {% if n == 'pesquisas' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="historico" %}<span>Pesquisas e execuções</span></a>
+  <a class="nav-item {% if n == 'integracoes' or n == 'importacoes' or n == 'importacao_detalhe' or n == 'fontes' or n == 'fonte_editar' or n == 'base_receita' %}ativo{% endif %}" href="{% url 'prospeccao:integracoes' %}" title="Integrações e fontes" {% if n == 'integracoes' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="integracoes" %}<span>Integrações e fontes</span></a>
+  <a class="nav-item {% if n == 'parametros' or n == 'frentes' %}ativo{% endif %}" href="{% url 'prospeccao:parametros' %}" title="Configurações" {% if n == 'parametros' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="parametros" %}<span>Configurações</span></a>
+  <a class="nav-item {% if n == 'usuarios' or n == 'usuario_novo' or n == 'usuario_editar' or n == 'usuario_senha' %}ativo{% endif %}" href="{% url 'prospeccao:usuarios' %}" title="Usuários" {% if n == 'usuarios' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="usuario" %}<span>Usuários</span></a>
+  </div>
+  {% endif %}
+
+  <div class="nav-rodape">
+    <div class="nav-usuario" title="{{ user.get_username }} ({{ papel_rotulo }})">{% include "carteira/_icone.html" with nome="usuario" %}<span>{{ user.get_username }} · {{ papel_rotulo }}</span></div>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn-sair" title="Sair" aria-label="Sair">{% include "carteira/_icone.html" with nome="sair" %}<span>Sair</span></button></form>
+  </div>
+</nav>
+{% endwith %}
+<main class="conteudo" id="conteudo" tabindex="-1">
+{% else %}
+<main id="conteudo">
+{% endif %}
+  {% if messages %}<ul class="msgs" role="status">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+{% include "carteira/_scripts.html" %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

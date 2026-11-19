@@ -1,0 +1,47 @@
+{% extends "carteira/base.html" %}
+{% block title %}Limpar o sistema{% endblock %}
+{% block content %}
+<a href="{% url 'prospeccao:parametros' %}">← Voltar às configurações</a>
+<h1>Limpar o sistema</h1>
+<p>Escolha o escopo. <strong>Não dá para desfazer pela tela</strong>; antes de apagar, o sistema grava uma cópia de
+  segurança em <code>{{ pasta_backup }}</code>.</p>
+
+<form method="post">{% csrf_token %}
+<section class="card" aria-labelledby="t-prosp">
+  <h2 id="t-prosp">1. Resultados da prospecção (sempre incluído)</h2>
+  <ul>
+    <li>{{ previa.empresas_encontradas }} empresa(s) encontrada(s) pelas pesquisas e ainda não contatada(s)</li>
+    <li>{{ previa.oportunidades }} lead(s) não contatado(s), {{ previa.pessoas_de_contato }} pessoa(s) de contato e os
+      telefones, e-mails e sites dessas empresas</li>
+    <li>{{ previa.selecoes }} item(ns) das listas das pesquisas, {{ previa.candidatas }} candidata(s) e {{ previa.execucoes }} execução(ões)</li>
+  </ul>
+  <p class="peq">A carteira Salesforce local <strong>não</strong> é apagada nesta opção.</p>
+</section>
+
+<section class="card" aria-labelledby="t-sf">
+  <h2 id="t-sf">2. Carteira Salesforce local (opcional, separado)</h2>
+  <label><input type="checkbox" name="incluir_carteira" value="1"> Apagar também a carteira Salesforce local:
+    {{ previa.contas_salesforce }} conta(s), {{ previa.notas_fiscais }} nota(s) fiscal(is),
+    {{ previa.leads_salesforce }} lead(s) do Salesforce e {{ previa.sincronizacoes }} sincronização(ões)</label>
+  <p class="peq"><strong>Atenção:</strong> sem a carteira local, as pesquisas não conseguem separar quem já é cliente
+    até uma nova sincronização com o Salesforce (somente leitura) ou a restauração de uma cópia.</p>
+</section>
+
+<section class="card" aria-labelledby="t-fica">
+  <h2 id="t-fica">O que sempre fica</h2>
+  <ul>
+    <li>Os logins e permissões</li>
+    <li>{{ previa.leads_contatados_mantidos }} lead(s) já contatado(s), com abordagens, retornos, contatos e histórico</li>
+    <li>{{ previa.pesquisas_mantidas }} pesquisa(s) cadastrada(s), com planos e frentes, e as configurações</li>
+    <li>A base pública da Receita e os registros de custo de IA e Google (para o teto continuar correto)</li>
+  </ul>
+</section>
+
+<section class="card" aria-labelledby="t-conf">
+  <h2 id="t-conf">Confirmar</h2>
+    <label for="confirmacao">Digite <strong>{{ confirmacao }}</strong> para confirmar</label>
+    <input id="confirmacao" name="confirmacao" autocomplete="off" required>
+    <button type="submit" class="btn">Limpar</button>
+</section>
+</form>
+{% endblock %}

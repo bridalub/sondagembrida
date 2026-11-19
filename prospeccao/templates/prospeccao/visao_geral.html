@@ -1,0 +1,114 @@
+{% extends "carteira/base.html" %}
+{% load humanize carteira_tags %}
+{% block title %}Visão geral{% endblock %}
+{% block content %}
+<header class="pq-cab">
+  <div>
+    <h1>Visão geral</h1>
+    <p class="lead">{% if n_primeira %}Há leads prontos para abordar.{% elif n_conferir %}Primeiro passo de hoje: conferir as {{ n_conferir|intcomma }} empresas novas.{% else %}Busque novos leads ou retome os retornos combinados.{% endif %}
+      <span class="mut peq">Carteira Salesforce de {{ cruzamento_quando|date:"d/m/Y H:i"|default:"—" }}{% if not cruzamento_atual %} (desatualizada; a prospecção continua){% endif %}.</span></p>
+  </div>
+  <div class="pq-acoes">
+    <a class="btn sec" href="{% url 'prospeccao:oportunidades' %}?etapa=todas">Meus leads</a>
+    <a class="btn btn-grande" href="{% url 'prospeccao:pesquisas' %}">{% include "carteira/_icone.html" with nome="buscar" %}Buscar novos leads</a>
+  </div>
+</header>
+
+<section class="pq-kpis" aria-label="O que trabalhar agora">
+  <a class="pq-kpi{% if not n_primeira and n_conferir %} destaque{% endif %}" href="{% url 'prospeccao:oportunidades' %}?etapa=conferir">
+    <span class="t">A conferir</span><span class="n">{{ n_conferir|intcomma }}</span><span class="d">Novas, aguardando liberação</span></a>
+  <a class="pq-kpi{% if n_primeira %} destaque{% endif %}" href="{% url 'prospeccao:oportunidades' %}?etapa=primeira">
+    <span class="t">Prontos para abordar</span><span class="n">{{ n_primeira|intcomma }}</span><span class="d">Liberados, ainda sem contato</span></a>
+  <a class="pq-kpi" href="{% url 'prospeccao:oportunidades' %}?etapa=andamento">
+    <span class="t">Em acompanhamento</span><span class="n">{{ n_andamento|intcomma }}</span><span class="d">Contato efetivo registrado</span></a>
+  <a class="pq-kpi" href="{% url 'carteira:retornos' %}?hoje=1">
+    <span class="t">Retornos de hoje</span><span class="n">{{ n_hoje|intcomma }}</span><span class="d">Combinados para hoje</span></a>
+  <a class="pq-kpi" href="{% url 'carteira:retornos' %}?atrasados=1"{% if n_atrasados %} style="border-top:4px solid var(--err)"{% endif %}>
+    <span class="t">Retornos atrasados</span><span class="n"{% if n_atrasados %} style="color:var(--err)"{% endif %}>{{ n_atrasados|intcomma }}</span><span class="d">Data já passou</span></a>
+  <a class="pq-kpi" href="{% url 'prospeccao:oportunidades' %}?contato=sem">
+    <span class="t">Sem telefone nem e-mail</span><span class="n">{{ n_sem_contato|intcomma }}</span><span class="d">Precisam de contato</span></a>
+</section>
+
+<div class="pq-grade">
+  <div>
+    <section class="card" aria-labelledby="t-trabalho">
+      {% if prontas %}
+      <div class="pq-card-cab"><h2 id="t-trabalho">Prontos para abordar</h2>
+        <a class="peq" href="{% url 'prospeccao:oportunidades' %}?etapa=primeira">Ver todos ({{ n_primeira|intcomma }})</a></div>
+      {% with lista=prontas %}{% include "prospeccao/_tabela_leads.html" %}{% endwith %}
+      {% elif a_conferir %}
+      <div class="pq-card-cab"><h2 id="t-trabalho">Para conferir agora</h2>
+        <a class="peq" href="{% url 'prospeccao:oportunidades' %}?etapa=conferir">Ver todas ({{ n_conferir|intcomma }})</a></div>
+      <p class="pq-nota" style="margin:-4px 0 10px">Confira o cadastro e libere para abordagem. Depois de liberadas, aparecem em <strong>Prontos para abordar</strong>.</p>
+      {% with lista=a_conferir %}{% include "prospeccao/_tabela_leads.html" %}{% endwith %}
+      {% else %}
+      <div class="pq-card-cab"><h2 id="t-trabalho">Leads para trabalhar</h2></div>
+      <div class="vazio">
+        <h3>Nenhum lead em aberto</h3>
+        <p>Abra uma pesquisa e clique em <strong>Buscar novos leads</strong>.</p>
+        <div class="acoes"><a class="btn" href="{% url 'prospeccao:pesquisas' %}">Ver pesquisas</a></div>
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="card" aria-labelledby="t-pesq">
+      <div class="pq-card-cab"><h2 id="t-pesq">Pesquisas</h2><a class="peq" href="{% url 'prospeccao:pesquisas' %}">Todas</a></div>
+      {% if pesquisas_recentes %}
+      <div class="pq-linhas">
+        {% for r in pesquisas_recentes %}
+        <a class="pq-linha" href="{% url 'prospeccao:pesquisa_detalhe' r.p.pk %}">
+          <span class="nome"><strong>{{ r.p.nome }}</strong>
+            <span class="mut peq">{{ r.n_cidades }} município{{ r.n_cidades|pluralize }} · {% if r.ult %}última busca {{ r.ult.criada_em|date:"d/m H:i" }}{% else %}sem buscas{% endif %}</span></span>
+          <span class="progresso"><span class="peq"><b>{{ r.completos }}</b> de {{ r.meta }} leads completos</span>
+            <span class="pq-barra" role="img" aria-label="{{ r.pct }}% da meta"><span style="width:{{ r.pct }}%"></span></span></span>
+          <span>{% if not r.p.ativa %}<span class="chip pausa">Pausada</span>{% elif r.ult and r.ult.ativa %}<span class="tag EXECUTANDO">Buscando</span>{% elif r.ult %}<span class="tag {{ r.ult.status }}">{{ r.ult.get_status_display }}</span>{% else %}<span class="chip">Salva</span>{% endif %}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="vazio"><h3>Nenhuma pesquisa criada</h3>
+        <div class="acoes">{% if user.is_staff %}<a class="btn" href="{% url 'prospeccao:pesquisa_nova' %}">Criar a primeira pesquisa</a>{% else %}<span>Peça a um gestor para criar a primeira pesquisa.</span>{% endif %}</div></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="pq-lateral">
+    {% if pesquisa_ativa %}
+    <section class="card" style="border-top:4px solid var(--azul)" aria-labelledby="t-and">
+      <div class="pq-card-cab"><h2 id="t-and">Busca em andamento</h2></div>
+      <p style="margin:0 0 10px"><strong>{{ pesquisa_ativa.pesquisa.nome }}</strong><br><span class="mut peq">{{ pesquisa_ativa.get_status_display }} · os achados aparecem durante a busca</span></p>
+      <a class="btn sec" style="width:100%;text-align:center" href="{% url 'prospeccao:execucao_detalhe' pesquisa_ativa.pk %}">Acompanhar</a>
+    </section>
+    {% endif %}
+
+    <section class="card" aria-labelledby="t-ret">
+      <div class="pq-card-cab"><h2 id="t-ret">Próximos retornos</h2><a class="peq" href="{% url 'carteira:retornos' %}">Todos</a></div>
+      {% if proximos_retornos %}
+      <ul class="historico">
+        {% for a in proximos_retornos %}
+        <li>
+          <div class="quando">{{ a.data_retorno|date:"d/m/Y" }}
+            {% if a.data_retorno < hoje %}<span class="tag atrasado">atrasado</span>{% elif a.data_retorno == hoje %}<span class="tag hoje">hoje</span>{% endif %}</div>
+          <a href="{{ a.empresa|url_empresa }}"><strong>{{ a.empresa.nome_fantasia|default:a.empresa.nome }}</strong></a>
+          <div class="peq">{{ a.proxima_acao|default:"Retornar o contato combinado" }} · <span class="mut">{{ a.usuario }}</span></div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="mut peq" style="margin:0">Nenhum retorno nos próximos 7 dias. Ao registrar uma abordagem com data de retorno, ela aparece aqui.</p>
+      {% endif %}
+    </section>
+
+    <section class="card" aria-labelledby="t-meus">
+      <div class="pq-card-cab"><h2 id="t-meus">Seus números</h2></div>
+      <dl class="pq-lista-def">
+        <dt>Leads em aberto</dt><dd><a href="{% url 'prospeccao:oportunidades' %}?etapa=todas">{{ n_abertas|intcomma }}</a></dd>
+        <dt>Sob sua responsabilidade</dt><dd><a href="{% url 'prospeccao:oportunidades' %}?responsavel=meus">{{ n_minhas|intcomma }}</a></dd>
+        <dt>Seus retornos</dt><dd><a href="{% url 'carteira:retornos' %}">{{ n_meus_retornos|intcomma }}</a></dd>
+        <dt>Sem identificação</dt><dd><a href="{% url 'prospeccao:revisao' %}">{{ n_pend_ident|intcomma }}</a></dd>
+      </dl>
+      <p class="pq-nota">Quem já está no Salesforce fica na <a href="{% url 'carteira:empresas' %}">carteira</a> e não entra nestes números.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

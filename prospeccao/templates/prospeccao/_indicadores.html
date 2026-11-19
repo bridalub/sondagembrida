@@ -1,0 +1,22 @@
+{# Indicadores comerciais da pesquisa: "Disponíveis" = mesma lista e mesma exportação dos links abaixo. #}
+<section class="card" aria-labelledby="t-ind">
+  <h2 id="t-ind">Leads desta pesquisa</h2>
+  <div class="grid">
+    <a class="card kpi" href="{{ ind.url }}"><span class="t">{% if ind.cruzamento_pendente %}Encontradas – cruzamento pendente{% else %}Disponíveis para abordagem{% endif %}</span><span class="n">{{ ind.disponiveis }}</span>
+      <span class="def">{% if ind.cruzamento_pendente %}Sem carteira Salesforce local: não confirmadas como novas · {% endif %}{{ ind.ineditas }} descoberta(s) pela primeira vez · {{ ind.reencontradas }} reencontrada(s) ainda sem contato</span></a>
+    <div class="card kpi"><span class="t">Tentativas sem resposta</span><span class="n">{{ ind.tentativas }}</span>
+      <span class="def">Já incluídas nas disponíveis</span></div>
+    <div class="card kpi"><span class="t">Em acompanhamento</span><span class="n">{{ ind.acompanhamento }}</span>
+      <span class="def">Contato efetivo registrado pela equipe</span></div>
+    <div class="card kpi"><span class="t">Separadas</span><span class="n">{{ ind.conhecidas|add:ind.correspondencias|add:ind.nao_contatar|add:ind.localizacao_pendente|add:ind.fora }}</span>
+      <span class="def">Salesforce {{ ind.conhecidas }} · possível correspondência {{ ind.correspondencias }}{% if ind.nao_contatar %} · não contatar {{ ind.nao_contatar }}{% endif %}{% if ind.localizacao_pendente %} · localização pendente {{ ind.localizacao_pendente }}{% endif %}{% if ind.fora %} · fora da região/escopo {{ ind.fora }}{% endif %}</span></div>
+  </div>
+  <p class="peq"><a href="{{ ind.url }}">Ver as {{ ind.disponiveis }} disponíveis</a> · <a href="{{ ind.url_export }}">Exportar as mesmas (CSV)</a></p>
+  <p class="peq">Mesmos critérios na lista e na exportação:
+    <a href="{{ ind.url_validado }}">Cadastro validado {{ ind.validado }}</a> ·
+    <a href="{{ ind.url_completar }}">Completar CNPJ {{ ind.completar_cnpj }}</a> ·
+    <a href="{{ ind.url_conferir_cadastro }}">Conferir identidade ou situação {{ ind.conferir_cadastro }}</a> ·
+    <a href="{{ ind.url_conhecidas }}">Conhecidas no Salesforce {{ ind.conhecidas_lista }}</a> ·
+    <a href="{{ ind.url_validado_export }}">Exportar validados</a>
+  </p>
+</section>

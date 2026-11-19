@@ -1,0 +1,87 @@
+{% extends "carteira/base.html" %}
+{% load carteira_tags %}
+{% block title %}Lista comercial – {{ p.nome }}{% endblock %}
+{% block content %}
+<a class="voltar" href="{% url 'prospeccao:pesquisa_detalhe' p.pk %}">{% include "carteira/_icone.html" with nome="voltar" %}Voltar à pesquisa</a>
+<div class="page-head">
+  <div>
+    <h1>Lista comercial <span class="contador">{{ p.nome }}</span></h1>
+    <p class="lead">Empresas consideradas por esta pesquisa, separadas por etapa. Copiar um telefone ou abrir um link não registra abordagem.
+      {% if p.plano_ativo %}Plano em uso: <a href="{% url 'prospeccao:plano' p.pk %}">v{{ p.plano_ativo.versao }}</a>.{% endif %}</p>
+  </div>
+</div>
+
+<form method="get" class="card" aria-label="Filtrar lista comercial">
+  <div class="barra-filtros">
+    <div><label for="f-fila">Etapa</label>
+      <select name="fila" id="f-fila">
+        {% for k, rot, n in filas %}<option value="{{ k }}" {% if fila == k %}selected{% endif %}>{{ rot }} ({{ n }})</option>{% endfor %}
+        <option value="TODAS" {% if fila == "TODAS" %}selected{% endif %}>Todas ({{ total_todas }})</option>
+      </select></div>
+    <div><label for="f-frente">Frente</label><select name="frente" id="f-frente"><option value="">Todas</option>{% for f in frentes %}<option value="{{ f.pk }}" {% if q.frente == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.nome }}</option>{% endfor %}</select></div>
+    <div><label for="f-apl">Aplicação</label><select name="aplicacao" id="f-apl"><option value="">Todas</option>{% for a in aplicacoes %}<option {% if q.aplicacao == a.nome %}selected{% endif %}>{{ a.nome }}</option>{% endfor %}</select></div>
+    <div><label for="f-ct">Contato</label><select name="contato" id="f-ct"><option value="">Todos</option>
+      <option value="telefone" {% if q.contato == "telefone" %}selected{% endif %}>Com telefone</option>
+      <option value="email" {% if q.contato == "email" %}selected{% endif %}>Com e-mail</option>
+      <option value="publicado" {% if q.contato == "publicado" %}selected{% endif %}>Publicado pela empresa</option></select></div>
+    <div><label for="f-resp">Responsável</label><select name="responsavel" id="f-resp"><option value="">Todos</option>
+      <option value="meus" {% if q.responsavel == "meus" %}selected{% endif %}>Minhas</option>
+      <option value="nenhum" {% if q.responsavel == "nenhum" %}selected{% endif %}>Sem responsável</option></select></div>
+    <div class="acoes-filtro"><button>Filtrar</button>{% if mais_ativos %}<a class="btn ghost" href="?fila={{ fila }}">Limpar</a>{% endif %}</div>
+  </div>
+</form>
+
+{% if pagina.object_list %}
+<div class="op-lista">
+{% for s in pagina %}{% with e=s.empresa %}
+  <article class="op-card" aria-labelledby="sel-{{ s.pk }}">
+    <div class="bloco">
+      <span class="rotulo">Empresa</span>
+      <h3 id="sel-{{ s.pk }}">{% if e %}<a href="{% url 'prospeccao:empresa' e.pk %}">{{ e.nome_fantasia|default:e.razao_social|default:e.nome }}</a>{% else %}{{ s.cnpj }}{% endif %}</h3>
+      <div class="linha"><span class="cnpj">{{ e.cnpj_formatado|default:s.cnpj }}</span>{% if e %} <span class="mut peq">{{ e.tipo_estabelecimento }}</span>{% endif %}</div>
+      {% if e %}<div class="linha">{{ e.cidade|default:"—" }}{% if e.uf %}/{{ e.uf }}{% endif %}</div>
+      <div class="linha mut peq quebra">{{ e.cnae }} {{ e.atividade_principal|truncatechars:70 }}</div>{% endif %}
+      {% if s.frente %}<div class="linha"><span class="tag info">{{ s.frente.nome }}</span></div>{% endif %}
+    </div>
+    <div class="bloco">
+      <span class="rotulo">Como entrar em contato</span>
+      {% if s.tel %}{% include "prospeccao/_contato_linha.html" with tipo="telefone" valor=s.tel.valor nivel=s.tel.nivel whatsapp=s.whatsapp rotulo_empresa=e.nome %}{% endif %}
+      {% include "prospeccao/_contato_linha.html" with tipo="email" valor=s.mail.valor nivel=s.mail.nivel finalidade=s.mail.get_classificacao_display whatsapp="" rotulo_empresa=e.nome %}
+      <div class="peq mut">{% if s.depto %}Depto.: {{ s.depto }} · {% endif %}{{ s.outros|default:0 }} contato{{ s.outros|pluralize }} no total</div>
+    </div>
+    <div class="bloco">
+      <span class="rotulo">Por que foi selecionada</span>
+      <ul class="motivo-lista">{% for m in s.motivos_selecao|slice:":3" %}<li>{{ m|truncatechars:120 }}</li>{% empty %}<li>Sem motivo registrado.</li>{% endfor %}</ul>
+      <div class="linha" style="margin-top:4px"><span class="tag {% if s.aderencia_efetiva == 'SUSTENTADA' %}ok{% elif s.aderencia_efetiva == 'PROVAVEL' %}aviso{% elif s.aderencia_efetiva == 'FORA' %}erro{% else %}contorno{% endif %}">{{ s.get_aderencia_display }}</span>
+        {% if s.aderencia_humana %}<span class="mut peq">corrigida pelo gestor</span>{% endif %}</div>
+    </div>
+    <div class="bloco acoes-op">
+      <div>
+        <span class="rotulo">Etapa</span>
+        <div class="etapa-op"><span class="tag {{ s.fila }}">{{ s.get_fila_display }}</span></div>
+        {% for m in s.fila_motivos|slice:":1" %}<div class="peq mut">{{ m|truncatechars:90 }}</div>{% endfor %}
+        {% if e.oportunidade.responsavel %}<div class="peq">{% include "carteira/_icone.html" with nome="pessoa" %} {{ e.oportunidade.responsavel }}</div>{% endif %}
+      </div>
+      {% if e %}<a class="btn sec btn-mini" href="{% url 'prospeccao:empresa' e.pk %}">Abrir empresa<span class="sr-only"> {{ e.nome }}</span></a>{% endif %}
+      <details class="peq"><summary>Revisar seleção</summary>
+        <form method="post" action="{% url 'prospeccao:selecao_revisar' s.pk %}" style="margin-top:8px">{% csrf_token %}
+          <input type="hidden" name="proximo" value="{{ request.get_full_path }}">
+          <div class="form-campo"><label for="ac-{{ s.pk }}">Decisão</label><select name="acao" id="ac-{{ s.pk }}"><option value="INCLUIR">Incluir</option><option value="RETIRAR">Retirar</option><option value="CORRIGIR">Corrigir aderência</option><option value="DESFAZER">Desfazer decisão</option></select></div>
+          <div class="form-campo"><label for="ad-{{ s.pk }}">Aderência <span class="opcional">ao corrigir</span></label><select name="aderencia" id="ad-{{ s.pk }}"><option value="">—</option><option value="SUSTENTADA">Sustentada</option><option value="PROVAVEL">Provável</option><option value="INSUFICIENTE">Insuficiente</option><option value="FORA">Fora</option></select></div>
+          <div class="form-campo"><label for="mo-{{ s.pk }}">Motivo <span class="obrig">obrigatório</span></label><input name="motivo" id="mo-{{ s.pk }}" required></div>
+          <button class="btn sec btn-mini">Salvar decisão</button></form>
+        {% if s.decisao_humana %}<p class="mut" style="margin-top:6px">{{ s.decisao_humana }} por {{ s.decisao_por }}: {{ s.decisao_motivo }}</p>{% endif %}
+      </details>
+    </div>
+  </article>
+{% endwith %}{% endfor %}
+</div>
+<nav class="pag" aria-label="Paginação">
+  <span class="mut">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+  <span class="acoes">{% if pagina.has_previous %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.previous_page_number %}">← Anterior</a>{% endif %}
+  {% if pagina.has_next %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.next_page_number %}">Próxima →</a>{% endif %}</span>
+</nav>
+{% else %}
+<div class="card vazio"><h2>Nenhuma empresa nesta etapa</h2><p>Escolha outra etapa ou “Todas”.</p></div>
+{% endif %}
+{% endblock %}

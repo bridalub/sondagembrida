@@ -1,0 +1,106 @@
+{% extends "carteira/base.html" %}
+{% load humanize carteira_tags %}
+{% block title %}Insight Sales{% endblock %}
+{% block content %}
+<header class="pq-cab">
+  <div>
+    <h1>Insight Sales</h1>
+    <p class="lead">Todas as empresas encontradas, com ou sem CNPJ. Ao registrar o contato, a empresa sai de <strong>A procurar</strong> e vai para <strong>Procurados</strong>, com quem atendeu.</p>
+  </div>
+  <div class="pq-acoes">
+    {% if not eh_adm %}<a class="btn sec" href="{% url 'prospeccao:minha_performance' %}">Minha performance</a>{% endif %}
+    {% if eh_adm %}<a class="btn sec" href="{% url 'prospeccao:captacao' %}">Painel de captação</a>{% endif %}</div>
+</header>
+{% if contagem.em_atendimento %}<p class="peq mut" style="margin:-6px 0 12px">{{ contagem.em_atendimento }} lead{{ contagem.em_atendimento|pluralize }} em atendimento agora. Cada lead é atendido por uma pessoa de cada vez: clique em <strong>Atender</strong> para assumir.</p>{% endif %}
+
+<nav class="is-abas" aria-label="Situação">
+  <a href="?aba=procurar{% if querystring_sem_aba %}&amp;{{ querystring_sem_aba }}{% endif %}" {% if aba == "procurar" %}aria-current="page"{% endif %}>
+    <span>A procurar</span><b>{{ contagem.procurar|intcomma }}</b><small>Leads ainda sem contato registrado</small></a>
+  <a href="?aba=procurados{% if querystring_sem_aba %}&amp;{{ querystring_sem_aba }}{% endif %}" {% if aba == "procurados" %}aria-current="page"{% endif %}>
+    <span>Procurados</span><b>{{ contagem.procurados|intcomma }}</b><small>Com contato registrado e quem atendeu</small></a>
+  {% if eh_adm %}<a href="{% url 'prospeccao:minha_performance' %}">
+    <span>Performance</span><i class="is-ic" aria-hidden="true">{% include "carteira/_icone.html" with nome="pessoa" %}</i><small>Números do mês de cada pessoa</small></a>{% endif %}
+</nav>
+
+<form method="get" class="card" role="search" aria-label="Filtrar empresas">
+  <input type="hidden" name="aba" value="{{ aba }}">
+  <div class="pq-filtros">
+    <div><label for="f-q">Empresa ou CNPJ</label>
+      <div class="campo-busca">{% include "carteira/_icone.html" with nome="buscar" %}<input id="f-q" type="search" name="q" value="{{ f.q }}" placeholder="Nome, razão social ou CNPJ" autocomplete="off"></div></div>
+    <div><label for="f-pesquisa">Pesquisa</label>
+      <select id="f-pesquisa" name="pesquisa"><option value="">Todas</option>
+        {% for p in pesquisas %}<option value="{{ p.pk }}" {% if f.pesquisa == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nome }}</option>{% endfor %}</select></div>
+    <div><label for="f-cidade">Município</label><input id="f-cidade" name="cidade" value="{{ f.cidade }}" autocomplete="off"></div>
+    <div><label for="f-cnpj">CNPJ</label>
+      <select id="f-cnpj" name="cnpj"><option value="">Com e sem CNPJ</option>
+        <option value="com" {% if f.cnpj == "com" %}selected{% endif %}>Com CNPJ</option>
+        <option value="sem" {% if f.cnpj == "sem" %}selected{% endif %}>Sem CNPJ</option></select></div>
+    {% if aba == "procurados" %}
+    <div><label for="f-atendente">Quem atendeu</label>
+      <select id="f-atendente" name="atendente"><option value="">Todos</option>
+        {% for u in atendentes %}<option value="{{ u }}" {% if f.atendente == u %}selected{% endif %}>{{ u }}</option>{% endfor %}</select></div>
+    {% else %}<div></div>{% endif %}
+    <div class="acoes-f"><button type="submit">{% include "carteira/_icone.html" with nome="buscar" %}Filtrar</button></div>
+  </div>
+  {% if tem_filtro %}<div class="pq-filtros-rodape"><a href="?aba={{ aba }}">Limpar filtros</a></div>{% endif %}
+</form>
+
+{% if itens %}
+<div class="tabela"><table class="is-tabela">
+  {% if aba == "procurar" %}
+  <tr><th>Empresa</th><th>Identificação</th><th>Município</th><th>Contato</th><th>Encontrada em</th><th class="dir">Ação</th></tr>
+  {% for o in itens %}{% with e=o.empresa c=o.contato %}
+  <tr>
+    <td data-label="Empresa"><a href="{% url 'prospeccao:empresa' e.pk %}"><strong>{{ e.nome_fantasia|default:e.razao_social|default:e.nome }}</strong></a>
+      {% if e.razao_social and e.nome_fantasia and e.razao_social != e.nome_fantasia %}<br><span class="mut peq">{{ e.razao_social|truncatechars:60 }}</span>{% endif %}</td>
+    <td data-label="Identificação">{% if e.cnpj %}<span class="cnpj peq">{{ e.cnpj_formatado }}</span><br>{% if e.situacao_cadastral == "ATIVA" %}<span class="chip ok">CNPJ ativo</span>{% else %}<span class="chip">{{ e.situacao_cadastral|default:"situação pendente"|lower }}</span>{% endif %}
+      {% else %}<span class="chip pausa">Sem CNPJ</span>{% endif %}</td>
+    <td data-label="Município">{{ e.cidade|default:"—" }}{% if e.uf %}/{{ e.uf }}{% endif %}</td>
+    <td data-label="Contato">{% if c.telefone %}<a href="{{ c.telefone|tel_href }}">{{ c.telefone }}</a>{% if c.whatsapp %} · <a href="{{ c.whatsapp|wa_href }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}{% elif c.email %}<span class="peq">{{ c.email }}</span>{% else %}<span class="nd">sem contato</span>{% endif %}</td>
+    <td data-label="Encontrada em"><span class="peq">{{ o.criada_em|date:"d/m/Y" }}</span></td>
+    <td data-label="Ação" class="dir">
+      {% if o.dono_outro %}
+        <span class="chip" title="Lead reservado: só a pessoa dona ou um ADMIN registra contato">{% include "carteira/_icone.html" with nome="pessoa" %}Lead de {{ o.dono_nome }}</span>
+      {% elif o.trava_nome and not o.trava_minha %}
+        <span class="chip pausa" title="Outro atendente está com este lead agora">{% include "carteira/_icone.html" with nome="pessoa" %}Em atendimento: {{ o.trava_nome }}</span>
+        {% if eh_adm %}<form method="post" action="{% url 'prospeccao:atendimento' o.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="proximo" value="{{ request.get_full_path }}"><button class="btn sec btn-mini" name="acao" value="liberar" title="ADM: tira a marcação de atendimento">Liberar</button></form>{% endif %}
+      {% else %}
+        <form method="post" action="{% url 'prospeccao:atendimento' o.pk %}" style="display:inline">{% csrf_token %}
+          <input type="hidden" name="proximo" value="{{ request.get_full_path }}">
+          <button class="btn btn-mini" name="acao" value="assumir">{% include "carteira/_icone.html" with nome="registrar" %}{% if o.trava_minha %}Continuar atendimento{% else %}Atender{% endif %}</button>
+          {% if o.trava_minha %}<button class="btn sec btn-mini" name="acao" value="liberar">Liberar</button>{% endif %}
+        </form>
+      {% endif %}</td>
+  </tr>{% endwith %}{% endfor %}
+  {% else %}
+  <tr><th>Empresa</th><th>Identificação</th><th>Quem atendeu</th><th>Último contato</th><th>Resultado</th><th>Contatos</th><th>Retorno</th></tr>
+  {% for o in itens %}{% with e=o.empresa %}
+  <tr>
+    <td data-label="Empresa"><a href="{% url 'prospeccao:empresa' e.pk %}"><strong>{{ e.nome_fantasia|default:e.razao_social|default:e.nome }}</strong></a>
+      <br><span class="mut peq">{{ e.cidade|default:"—" }}{% if e.uf %}/{{ e.uf }}{% endif %}</span></td>
+    <td data-label="Identificação">{% if e.cnpj %}<span class="cnpj peq">{{ e.cnpj_formatado }}</span>{% else %}<span class="chip pausa">Sem CNPJ</span>{% endif %}</td>
+    <td data-label="Quem atendeu"><span class="chip">{% include "carteira/_icone.html" with nome="pessoa" %}{{ o.atendente|default:"—" }}</span>
+      {% if o.dono_nome %}<br><span class="mut peq">lead de {{ o.dono_nome }}</span>{% endif %}</td>
+    <td data-label="Último contato">{{ o.ult_quando|date:"d/m/Y H:i" }}<br><span class="mut peq">{{ o.ult_canal_rot }}</span></td>
+    <td data-label="Resultado"><span class="tag {{ o.ult_resultado }}">{{ o.ult_resultado_rot|default:"—" }}</span></td>
+    <td data-label="Contatos">{{ o.n_contatos }}</td>
+    <td data-label="Retorno">{% if o.ult_retorno %}{{ o.ult_retorno|date:"d/m/Y" }}{% else %}<span class="mut">—</span>{% endif %}</td>
+  </tr>{% endwith %}{% endfor %}
+  {% endif %}
+</table></div>
+
+<nav class="pag" aria-label="Paginação">
+  <span class="mut">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} · {{ pagina.paginator.count|intcomma }} empresa{{ pagina.paginator.count|pluralize }}</span>
+  <span class="acoes">
+    {% if pagina.has_previous %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.previous_page_number %}" rel="prev">← Anterior</a>{% endif %}
+    {% if pagina.has_next %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.next_page_number %}" rel="next">Próxima →</a>{% endif %}
+  </span>
+</nav>
+{% else %}
+<div class="card vazio">
+  {% if tem_filtro %}<h2>Nada com estes filtros</h2><p>Mude ou limpe os filtros.</p><div class="acoes"><a class="btn sec" href="?aba={{ aba }}">Limpar filtros</a></div>
+  {% elif aba == "procurar" %}<h2>Ninguém falta procurar</h2><p>Todas as empresas encontradas já têm contato registrado. Novas buscas trazem mais empresas para esta lista.</p>
+  {% else %}<h2>Nenhuma empresa procurada ainda</h2><p>Na aba <strong>A procurar</strong>, use <strong>Registrar contato</strong>: a empresa passa para cá com o nome de quem atendeu.</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

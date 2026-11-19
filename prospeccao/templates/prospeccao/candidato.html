@@ -1,0 +1,61 @@
+{% extends "carteira/base.html" %}
+{% block title %}{{ c.nome }}{% endblock %}
+{% block content %}
+<a class="voltar" href="{% url 'prospeccao:revisao' %}">{% include "carteira/_icone.html" with nome="voltar" %}Voltar às pendências</a>
+<div class="page-head">
+  <div>
+    <h1>{{ c.nome }}</h1>
+    <div class="acoes" style="gap:6px"><span class="tag {{ c.status }}">{{ c.get_status_display }}</span><span class="mut peq">Encontrada em {{ c.fonte.nome }}{% if c.cidade %} · {{ c.cidade }}/{{ c.uf }}{% endif %}</span></div>
+  </div>
+</div>
+{% if c.status != "IDENTIFICADO" %}<div class="faixa info">Enquanto o CNPJ não for confirmado, esta empresa não é uma oportunidade. Nada é unido automaticamente por nome, telefone ou site.</div>{% endif %}
+
+<div class="duas">
+<section class="card" aria-labelledby="t-id">
+  <h2 id="t-id">Identificação</h2>
+  <p>{{ c.detalhe_identificacao|default:"Sem CNPJ identificado." }}</p>
+  {% if c.motivo_exclusao %}<p><strong>Motivo:</strong> {{ c.motivo_exclusao }}</p>{% endif %}
+  {% if c.empresa %}<p>Vinculada a <a href="{% url 'prospeccao:empresa' c.empresa_id %}">{{ c.empresa.nome }}</a> ({{ c.metodo_identificacao }}, confiança {{ c.get_confianca_display|default:"—" }}) em {{ c.vinculado_em|date:"d/m/Y H:i" }}{% if c.vinculado_por %} por {{ c.vinculado_por }}{% endif %}.</p>{% endif %}
+  {% if c.status != "IDENTIFICADO" %}
+  {% if c.sugestoes %}<h3>Possíveis correspondências <span class="opcional">não vinculadas</span></h3>
+    {% for s in c.sugestoes %}
+    <form method="post" action="{% url 'prospeccao:candidato_vincular' c.pk s.empresa_id %}" class="card" style="padding:12px;box-shadow:none">{% csrf_token %}
+      <div><a href="{% url 'prospeccao:empresa' s.empresa_id %}"><strong>{{ s.nome }}</strong></a> <span class="cnpj">{{ s.cnpj }}</span> {% if s.salesforce %}<span class="tag CLIENTE_CARTEIRA">já no Salesforce</span>{% endif %}
+        <div class="peq mut">Por quê: {{ s.motivos|join:", " }}</div></div>
+      <div class="form-campo" style="margin:8px 0"><label for="sug-{{ forloop.counter }}">Por que é a mesma empresa <span class="obrig">obrigatório</span></label><input id="sug-{{ forloop.counter }}" name="motivo" required></div>
+      <button class="btn sec btn-mini">É esta empresa</button>
+    </form>{% endfor %}{% endif %}
+  <h3>Informar ou confirmar o CNPJ</h3>
+  <form method="post" action="{% url 'prospeccao:candidato_cnpj' c.pk %}">{% csrf_token %}
+    {% include "prospeccao/_campo.html" with f=cnpj_form.cnpj %}
+    {% include "prospeccao/_campo.html" with f=cnpj_form.motivo %}
+    <button>Verificar na Receita e vincular</button></form>
+  {% endif %}
+  <div class="acoes" style="margin-top:14px">
+  {% if c.status != "DESCARTADO" and c.status != "IDENTIFICADO" %}<form method="post" action="{% url 'prospeccao:candidato_descartar' c.pk %}">{% csrf_token %}<label class="sr-only" for="desc-m">Motivo do descarte</label><input id="desc-m" name="motivo" placeholder="Motivo (ex.: não é empresa, duplicado)" required><button class="btn perigo">Descartar</button></form>{% endif %}
+  {% if c.status == "DESCARTADO" or c.status == "EXCLUIDO" or c.status == "CONFLITO" %}<form method="post" action="{% url 'prospeccao:candidato_reabrir' c.pk %}">{% csrf_token %}<label class="sr-only" for="reab-m">Motivo da reabertura</label><input id="reab-m" name="motivo" placeholder="Motivo"><button class="btn sec">Reabrir</button></form>{% endif %}
+  </div>
+</section>
+<section class="card" aria-labelledby="t-fonte">
+  <h2 id="t-fonte">Dados da fonte ({{ c.fonte.nome }})</h2>
+  <dl class="dados">
+    <dt>Endereço</dt><dd>{{ c.endereco|default:"—" }} {{ c.cidade }}/{{ c.uf }} {{ c.cep }}</dd>
+    <dt>Telefone</dt><dd>{{ c.telefone|default:"—" }}</dd><dt>E-mail</dt><dd class="quebra">{{ c.email|default:"—" }}</dd>
+    <dt>Site</dt><dd class="quebra">{% if c.site %}<a href="{{ c.site }}" rel="noopener noreferrer nofollow" target="_blank">{{ c.site }}</a>{% else %}—{% endif %}</dd>
+    <dt>Categoria na fonte</dt><dd>{{ c.atividade_fonte|default:"—" }}</dd>
+    <dt>CNPJ informado pela fonte</dt><dd class="cnpj">{{ c.cnpj_informado|default:"—" }}</dd>
+    <dt>Coleta</dt><dd>primeira {{ c.primeira_coleta_em|date:"d/m/Y H:i" }} · última {{ c.coletado_em|date:"d/m/Y H:i" }}</dd>
+    <dt>Pesquisas</dt><dd>{% for p in pesquisas %}{{ p.nome }}{% if not forloop.last %}, {% endif %}{% endfor %}</dd>
+    <dt>Referência</dt><dd class="quebra">{{ c.id_externo }}{% if c.url_referencia %} · <a href="{{ c.url_referencia }}" rel="noopener noreferrer nofollow" target="_blank">ver na origem</a>{% endif %}</dd>
+    {% if c.dados.atribuicao %}<dt>Atribuição</dt><dd class="mut">{{ c.dados.atribuicao }}</dd>{% endif %}
+    {% if c.dados.site_cnpjs %}<dt>CNPJs no site</dt><dd>{% for k, v in c.dados.site_cnpjs.items %}{{ k }} <a href="{{ v }}" rel="noopener noreferrer nofollow" target="_blank">(página)</a><br>{% endfor %}</dd>{% endif %}
+    {% if c.dados.site_erros %}<dt>Leitura do site</dt><dd class="mut">{{ c.dados.site_erros|join:"; " }}</dd>{% endif %}
+  </dl>
+</section>
+</div>
+<section class="card"><h2>Evidências encontradas</h2>
+{% for ev in evidencias %}<div style="margin-bottom:8px"><span class="tag {{ ev.classificacao }}">{{ ev.get_classificacao_display }}</span> {{ ev.descricao }}{% if ev.trecho %} – <em>“{{ ev.trecho }}”</em>{% endif %}
+  <span class="mut peq">({{ ev.fonte }}{% if ev.url %}, <a href="{{ ev.url }}" rel="noopener noreferrer nofollow" target="_blank">origem</a>{% endif %})</span>{% if ev.aplicacoes.all %}<br><span class="mut peq">Possível aplicação: {{ ev.aplicacoes.all|join:", " }}</span>{% endif %}</div>
+{% empty %}<p class="mut">Nenhuma evidência ainda – aplicação a investigar.</p>{% endfor %}</section>
+{% if decisoes %}<section class="card"><h2>Decisões</h2><ul class="historico">{% for d in decisoes %}<li><div class="quando">{{ d.criada_em|date:"d/m/Y H:i" }} · {{ d.usuario }}</div>{{ d.tipo }}: {{ d.motivo }}</li>{% endfor %}</ul></section>{% endif %}
+{% endblock %}

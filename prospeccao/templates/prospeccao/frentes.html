@@ -1,0 +1,18 @@
+{% extends "carteira/base.html" %}
+{% block title %}Frentes comerciais{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Frentes comerciais</h1>
+    <p class="lead">Frentes organizam a busca (frota própria, indústria, agro...). Não excluem empresas de outros segmentos com operação parecida. Cada pesquisa mantém seus próprios critérios e resultados.</p>
+  </div>
+  {% if user.is_staff %}<div class="acoes"><a class="btn sec" href="{% url 'admin:prospeccao_frentecomercial_changelist' %}">Editar frentes</a></div>{% endif %}
+</div>
+{% if dados %}
+<div class="tabela"><table>
+<tr><th>Frente</th><th>Pesquisas</th><th>Empresas consideradas</th>{% for k in ordem %}<th class="peq">{% for kk, r in rot.items %}{% if kk == k %}{{ r }}{% endif %}{% endfor %}</th>{% endfor %}</tr>
+{% for d in dados %}<tr><td><strong>{{ d.f.nome }}</strong>{% if not d.f.ativa %} <span class="tag CANCELADA">inativa</span>{% endif %}<br><span class="mut peq">{{ d.f.descricao|truncatechars:120 }}</span></td>
+<td>{{ d.pesquisas }}</td><td>{{ d.total }}</td>{% for k in ordem %}<td>{% for kk, n in d.filas.items %}{% if kk == k %}{{ n }}{% endif %}{% endfor %}</td>{% endfor %}</tr>{% endfor %}
+</table></div>
+{% else %}<div class="card vazio"><h2>Nenhuma frente cadastrada</h2>{% if user.is_staff %}<p>Cadastre as frentes no cadastro técnico.</p>{% endif %}</div>{% endif %}
+{% endblock %}

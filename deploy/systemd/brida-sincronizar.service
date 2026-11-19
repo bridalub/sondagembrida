@@ -1,0 +1,14 @@
+[Unit]
+Description=BRIDA Prospeccao - sincronizacao com o Salesforce (somente leitura)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=brida
+Group=brida
+WorkingDirectory=/opt/brida-prospeccao
+EnvironmentFile=/opt/brida-prospeccao/.env
+ExecStart=/opt/brida-prospeccao/.venv/bin/python manage.py sincronizar_automatico
+# limite de seguranca: uma rodada nao pode passar de 55 minutos
+TimeoutStartSec=55min

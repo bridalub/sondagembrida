@@ -1,0 +1,82 @@
+{% extends "carteira/base.html" %}
+{% load carteira_tags humanize %}
+{% block title %}{% if somente_novas %}Reativação{% else %}Carteira Salesforce{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    {% if somente_novas %}
+    <h1>Reativação <span class="contador">{{ total|intcomma }} empresa{{ total|pluralize }}</span></h1>
+    <p class="lead">Contas da carteira sem nenhuma tentativa de contato registrada e não marcadas como “não contatar”. Empresas já abordadas seguem em <a href="{% url 'carteira:retornos' %}">Acompanhar retornos</a>.</p>
+    {% else %}
+    <h1>Carteira Salesforce <span class="contador">{{ total|intcomma }} empresa{{ total|pluralize }}</span></h1>
+    <p class="lead">Empresas já conhecidas. Não entram como novos leads.</p>
+    <p class="mut peq">{% if cruzamento_quando %}Sincronizada em {{ cruzamento_quando|date:"d/m/Y H:i" }}.{% else %}Nenhuma sincronização registrada.{% endif %} {% if not cruzamento_atual %}A prospecção continua com esta base.{% endif %}</p>
+    {% endif %}
+  </div>
+  <div class="acoes">
+    {% if eh_adm %}<a class="btn sec" href="{% url 'carteira:novas_abordagens' %}">Reativação</a>
+    <a class="btn sec" href="{% url 'carteira:listas' %}">Histórico e listas</a>{% endif %}
+  </div>
+</div>
+
+<form method="get" class="card" role="search" aria-label="Filtrar empresas">
+  <div class="barra-filtros">
+    <div><label for="{{ form.q.id_for_label }}">{{ form.q.label }}</label><div class="campo-busca">{% include "carteira/_icone.html" with nome="buscar" %}{{ form.q }}</div></div>
+    <div><label for="{{ form.cidade.id_for_label }}">Município</label>{{ form.cidade }}</div>
+    <div><label for="{{ form.situacao_compra.id_for_label }}">{{ form.situacao_compra.label }}</label>{{ form.situacao_compra }}</div>
+    <div><label for="{{ form.situacao_contato.id_for_label }}">{{ form.situacao_contato.label }}</label>{{ form.situacao_contato }}</div>
+  </div>
+  <details class="mais-filtros" {% if form.errors or request.GET.segmento or request.GET.ramo or request.GET.uf or request.GET.vendedor or request.GET.tempo_min or request.GET.tempo_max or request.GET.tempo_desconhecido or request.GET.inativos or request.GET.revisao %}open{% endif %}>
+    <summary>Mais filtros</summary>
+    <div class="barra-filtros" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))">
+      {% for f in form %}{% if f.name != "q" and f.name != "cidade" and f.name != "situacao_compra" and f.name != "situacao_contato" %}
+      {% if f.field.widget.input_type == "checkbox" %}<div class="check"><label for="{{ f.id_for_label }}">{{ f }} {{ f.label }}</label></div>
+      {% else %}<div><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% if f.help_text %}<div class="ajuda peq mut">{{ f.help_text }}</div>{% endif %}</div>{% endif %}
+      {% if f.errors %}<ul class="errorlist">{% for err in f.errors %}<li>{{ err }}</li>{% endfor %}</ul>{% endif %}
+      {% endif %}{% endfor %}
+    </div>
+  </details>
+  <div class="acoes" style="margin-top:12px"><button>{% include "carteira/_icone.html" with nome="buscar" %}Filtrar</button>{% if querystring %}<a class="btn ghost" href="?">Limpar filtros</a>{% endif %}</div>
+</form>
+
+{% if somente_novas %}
+<details class="card">
+  <summary><strong>Gerar lista de abordagem com os filtros atuais</strong></summary>
+  <form method="post" class="barra-filtros" action="?{{ querystring }}" style="margin-top:10px">{% csrf_token %}
+    <div><label for="{{ gform.nome.id_for_label }}">Nome da lista <span class="obrig">obrigatório</span></label>{{ gform.nome }}</div>
+    <div><label for="{{ gform.limite.id_for_label }}">Máximo de empresas <span class="opcional">opcional</span></label>{{ gform.limite }}</div>
+    <div class="acoes-filtro"><button>Gerar lista</button></div>
+  </form>
+  <p class="mut peq" style="margin:8px 0 0">Incluir numa lista não registra contato. Empresas abordadas ou “não contatar” nunca entram.</p>
+</details>
+{% endif %}
+
+{% if pagina.object_list %}
+<div class="tabela">
+<table>
+  <tr class="cab"><th>Empresa</th><th>CNPJ</th><th>Segmento / ramo</th><th>Município</th><th>Tempo de empresa</th><th>Situação de compra</th><th>Última compra</th><th>Contato</th></tr>
+  {% for e in pagina %}
+  <tr>
+    <td data-label="Empresa"><a href="{% url 'carteira:empresa_detalhe' e.pk %}"><strong>{{ e.nome }}</strong></a>
+        {% if e.requer_revisao %}<br><span class="tag INCONSISTENTE" title="{{ e.motivo_revisao }}">revisar cadastro</span>{% endif %}</td>
+    <td data-label="CNPJ">{% if e.cnpj %}<span class="cnpj">{{ e.cnpj_formatado }}</span><br><span class="mut peq">{{ e.tipo_estabelecimento }}</span>{% else %}<span class="tag REJEITADO">{{ e.get_cnpj_status_display }}</span>{% endif %}</td>
+    <td data-label="Segmento">{{ e.segmento|nd }}{% if e.ramo %}<br><span class="mut peq">{{ e.ramo }}</span>{% endif %}</td>
+    <td data-label="Município">{% if e.cidade or e.uf %}{{ e.cidade }}{% if e.uf %}/{{ e.uf }}{% endif %}{% else %}{{ ""|nd }}{% endif %}</td>
+    <td data-label="Tempo">{% if e.tempo_empresa_anos is not None %}{{ e.tempo_empresa_anos }} ano(s){% else %}{{ ""|nd }}{% endif %}</td>
+    <td data-label="Compra"><span class="tag {{ e.situacao_compra }}">{{ e.situacao_compra|rotulo:rot_compra }}</span></td>
+    <td data-label="Última compra">{{ e.indicador.ultima_compra|date:"d/m/Y"|default:"—" }}</td>
+    <td data-label="Contato"><span class="tag {{ e.situacao_contato }}">{{ e.situacao_contato|rotulo:rot_contato }}</span>
+        {% if e.proximo_retorno %}<br><span class="mut peq">retorno {{ e.proximo_retorno|date:"d/m/Y" }}</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+<nav class="pag" aria-label="Paginação">
+  <span class="mut">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+  <span class="acoes">{% if pagina.has_previous %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.previous_page_number %}">← Anterior</a>{% endif %}
+  {% if pagina.has_next %}<a class="btn sec btn-mini" href="{% pagina_href querystring pagina.next_page_number %}">Próxima →</a>{% endif %}</span>
+</nav>
+{% else %}
+<div class="card vazio"><h2>Nenhuma empresa encontrada</h2><p>{% if querystring %}Ajuste ou limpe os filtros.{% else %}A carteira ainda não foi sincronizada com o Salesforce.{% endif %}</p></div>
+{% endif %}
+{% endblock %}

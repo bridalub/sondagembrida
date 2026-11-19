@@ -1,0 +1,73 @@
+{% extends "carteira/base.html" %}
+{% load humanize %}
+{% block title %}Usuários{% endblock %}
+{% block content %}
+<style>
+.us-perfil { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; }
+.us-perfil.ADM { background: var(--azul-900); color: #fff; }
+.us-perfil.INSIGHT { background: var(--azul-50); color: var(--azul-900); border: 1px solid var(--bd); }
+.us-filtros { display: grid; gap: 10px 12px; grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(160px, 1fr)) auto; align-items: end; }
+@media (max-width: 760px) { .us-filtros { grid-template-columns: 1fr; } }
+.us-inativo td { opacity: .6; }
+.us-perfis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); margin-bottom: 16px; }
+.us-perfis .card { margin: 0; }
+.us-perfis h2 { font-size: 1rem; margin: 0 0 4px; }
+.us-perfis p { margin: 0; font-size: 13.5px; color: var(--mut); }
+</style>
+
+<header class="pq-cab">
+  <div>
+    <h1>Usuários</h1>
+    <p class="lead">Quem entra no sistema e com qual perfil. {{ totais.ativos }} ativo{{ totais.ativos|pluralize }}{% if totais.inativos %} · {{ totais.inativos }} inativo{{ totais.inativos|pluralize }}{% endif %} · {{ totais.admins }} ADMIN{{ totais.admins|pluralize }}.</p>
+  </div>
+  <div class="pq-acoes"><a class="btn" href="{% url 'prospeccao:usuario_novo' %}">{% include "carteira/_icone.html" with nome="usuario" %}Novo usuário</a></div>
+</header>
+
+<div class="us-perfis">
+  <div class="card"><h2><span class="us-perfil ADM">ADMIN</span></h2><p>Acesso total: buscas, pesquisas, configurações, carteira, painel de captação, performance de todos e usuários.</p></div>
+  <div class="card"><h2><span class="us-perfil INSIGHT">Insight Sales</span></h2><p>Menu Insight Sales (leads a procurar e procurados), Minha performance e Acompanhar retornos (só os dele). Atende um lead por vez.</p></div>
+</div>
+
+<form method="get" class="card" role="search" aria-label="Filtrar usuários">
+  <div class="us-filtros">
+    <div><label for="f-q">Nome, login ou e-mail</label>
+      <div class="campo-busca">{% include "carteira/_icone.html" with nome="buscar" %}<input id="f-q" type="search" name="q" value="{{ f.q }}" autocomplete="off"></div></div>
+    <div><label for="f-perfil">Perfil</label>
+      <select id="f-perfil" name="perfil"><option value="">Todos</option>
+        <option value="ADM" {% if f.perfil == "ADM" %}selected{% endif %}>ADMIN</option>
+        <option value="INSIGHT" {% if f.perfil == "INSIGHT" %}selected{% endif %}>Insight Sales</option></select></div>
+    <div><label for="f-sit">Situação</label>
+      <select id="f-sit" name="situacao">
+        <option value="ativos" {% if f.situacao == "ativos" %}selected{% endif %}>Ativos</option>
+        <option value="inativos" {% if f.situacao == "inativos" %}selected{% endif %}>Inativos</option>
+        <option value="todos" {% if f.situacao == "todos" %}selected{% endif %}>Todos</option></select></div>
+    <div class="acoes-f"><button type="submit">{% include "carteira/_icone.html" with nome="buscar" %}Filtrar</button></div>
+  </div>
+</form>
+
+{% if usuarios %}
+<div class="tabela"><table class="is-tabela">
+  <tr><th>Nome</th><th>Login</th><th>Perfil</th><th>Situação</th><th>Contatos registrados</th><th>Último acesso</th><th class="dir">Ações</th></tr>
+  {% for u in usuarios %}
+  <tr class="{% if not u.is_active %}us-inativo{% endif %}">
+    <td data-label="Nome"><strong>{{ u.get_full_name|default:u.first_name|default:"—" }}</strong>{% if u.pk == user.pk %} <span class="chip">você</span>{% endif %}
+      {% if u.email %}<br><span class="mut peq">{{ u.email }}</span>{% endif %}</td>
+    <td data-label="Login">{{ u.username }}</td>
+    <td data-label="Perfil"><span class="us-perfil {{ u.perfil }}">{{ u.perfil_rotulo }}</span></td>
+    <td data-label="Situação">{% if u.is_active %}<span class="chip ok">Ativo</span>{% else %}<span class="chip">Inativo</span>{% endif %}</td>
+    <td data-label="Contatos">{{ u.n_contatos|intcomma }}{% if u.ult_contato %}<br><span class="mut peq">último {{ u.ult_contato|date:"d/m/Y" }}</span>{% endif %}</td>
+    <td data-label="Último acesso">{% if u.last_login %}{{ u.last_login|date:"d/m/Y H:i" }}{% else %}<span class="mut">nunca entrou</span>{% endif %}</td>
+    <td data-label="Ações" class="dir"><div class="acoes" style="justify-content:flex-end">
+      <a class="btn sec btn-mini" href="{% url 'prospeccao:usuario_editar' u.pk %}">Editar</a>
+      {% if u.pk != user.pk %}
+      <form method="post" action="{% url 'prospeccao:usuario_ativo' u.pk %}" {% if u.is_active %}data-confirma="Desativar {{ u.username }}? A pessoa não entra mais no sistema; o histórico fica."{% endif %}>{% csrf_token %}
+        <input type="hidden" name="ativo" value="{% if u.is_active %}0{% else %}1{% endif %}">
+        <button class="btn {% if u.is_active %}ghost{% else %}sec{% endif %} btn-mini">{% if u.is_active %}Desativar{% else %}Reativar{% endif %}</button></form>
+      {% endif %}
+    </div></td>
+  </tr>{% endfor %}
+</table></div>
+{% else %}
+<div class="card vazio"><h2>Nenhum usuário com estes filtros</h2><p><a href="{% url 'prospeccao:usuarios' %}">Limpar filtros</a></p></div>
+{% endif %}
+{% endblock %}

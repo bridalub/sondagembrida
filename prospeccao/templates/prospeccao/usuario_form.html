@@ -1,0 +1,68 @@
+{% extends "carteira/base.html" %}
+{% block title %}{% if novo %}Novo usuário{% else %}Editar {{ alvo.username }}{% endif %}{% endblock %}
+{% block content %}
+<style>
+.uf-grade { display: grid; gap: 16px; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+@media (max-width: 900px) { .uf-grade { grid-template-columns: 1fr; } }
+.uf-campos { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+.uf-campos .largo { grid-column: 1 / -1; }
+@media (max-width: 600px) { .uf-campos { grid-template-columns: 1fr; } }
+.uf-campos label { display: block; font-weight: 650; margin-bottom: 4px; }
+.uf-campos .ajuda { font-size: 12.5px; color: var(--mut); margin-top: 3px; }
+.uf-campos .erro { color: var(--erro, #b42318); font-size: 13px; margin-top: 3px; }
+.uf-perfis { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 600px) { .uf-perfis { grid-template-columns: 1fr; } }
+.uf-perfil { display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid var(--bd); border-radius: var(--raio); padding: 12px 14px; cursor: pointer; background: #fff; }
+.uf-perfil:has(input:checked) { border-color: var(--azul); box-shadow: 0 0 0 3px var(--azul-50); }
+.uf-perfil input { margin-top: 3px; width: auto; min-height: 0; }
+.uf-perfil b { display: block; color: var(--azul-900); }
+.uf-perfil span { font-size: 13px; color: var(--mut); }
+.uf-check { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+.uf-check input { width: auto; min-height: 0; }
+</style>
+
+<a class="voltar" href="{% url 'prospeccao:usuarios' %}">{% include "carteira/_icone.html" with nome="voltar" %}Voltar aos usuários</a>
+<header class="pq-cab"><div>
+  <h1>{% if novo %}Novo usuário{% else %}{{ alvo.get_full_name|default:alvo.username }}{% endif %}</h1>
+  <p class="lead">{% if novo %}Cadastre a pessoa, escolha o perfil e defina a senha inicial (informe-a à pessoa).{% else %}Login {{ alvo.username }}{% if alvo.last_login %} · último acesso {{ alvo.last_login|date:"d/m/Y H:i" }}{% else %} · ainda não entrou{% endif %}.{% endif %}</p>
+</div></header>
+
+<div class="uf-grade">
+<form method="post" class="card" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="erro-resumo" role="alert"><h2>Não foi possível salvar</h2><ul>{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+  <h2 style="margin-top:0">Dados</h2>
+  <div class="uf-campos">
+    <div><label for="{{ form.nome.id_for_label }}">{{ form.nome.label }}</label>{{ form.nome }}{% for e in form.nome.errors %}<div class="erro">{{ e }}</div>{% endfor %}</div>
+    <div><label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>{{ form.username }}<div class="ajuda">{{ form.username.help_text }}</div>{% for e in form.username.errors %}<div class="erro">{{ e }}</div>{% endfor %}</div>
+    <div class="largo"><label for="{{ form.email.id_for_label }}">{{ form.email.label }} <span class="mut peq">(opcional)</span></label>{{ form.email }}{% for e in form.email.errors %}<div class="erro">{{ e }}</div>{% endfor %}</div>
+    <div class="largo"><span style="display:block;font-weight:650;margin-bottom:6px">Perfil</span>
+      <div class="uf-perfis" role="radiogroup" aria-label="Perfil">
+        {% for r in form.perfil %}<label class="uf-perfil">{{ r.tag }}<div><b>{{ r.choice_label }}</b>
+          <span>{% if r.data.value == "ADM" %}Acesso total ao sistema, inclusive usuários e configurações.{% else %}Insight Sales, Minha performance e Acompanhar retornos.{% endif %}</span></div></label>{% endfor %}
+      </div>{% for e in form.perfil.errors %}<div class="erro">{{ e }}</div>{% endfor %}</div>
+    {% if novo %}
+    <div><label for="{{ form.senha1.id_for_label }}">{{ form.senha1.label }}</label>{{ form.senha1 }}{% for e in form.senha1.errors %}<div class="erro">{{ e }}</div>{% endfor %}<div class="ajuda">Mínimo de 8 caracteres, não só números nem parecida com o login.</div></div>
+    <div><label for="{{ form.senha2.id_for_label }}">{{ form.senha2.label }}</label>{{ form.senha2 }}{% for e in form.senha2.errors %}<div class="erro">{{ e }}</div>{% endfor %}</div>
+    {% endif %}
+    <div class="largo"><label class="uf-check">{{ form.ativo }} {{ form.ativo.label }}</label></div>
+  </div>
+  <div class="acoes" style="margin-top:16px">
+    <button type="submit">{% if novo %}Criar usuário{% else %}Salvar alterações{% endif %}</button>
+    <a class="btn ghost" href="{% url 'prospeccao:usuarios' %}">Cancelar</a>
+  </div>
+</form>
+
+{% if not novo %}
+<form method="post" action="{% url 'prospeccao:usuario_senha' alvo.pk %}" class="card" id="senha" novalidate>{% csrf_token %}
+  <h2 style="margin-top:0">Definir nova senha</h2>
+  <p class="peq mut">Use quando a pessoa esquecer a senha. Informe a nova senha a ela.</p>
+  <div class="uf-campos">
+    <div class="largo"><label for="id_senha1">{{ senha_form.senha1.label }}</label>{{ senha_form.senha1 }}{% for e in senha_form.senha1.errors %}<div class="erro">{{ e }}</div>{% endfor %}</div>
+    <div class="largo"><label for="id_senha2">{{ senha_form.senha2.label }}</label>{{ senha_form.senha2 }}{% for e in senha_form.senha2.errors %}<div class="erro">{{ e }}</div>{% endfor %}</div>
+  </div>
+  <div class="acoes" style="margin-top:14px"><button type="submit" class="sec">Alterar senha</button></div>
+</form>
+{% endif %}
+</div>
+{% if foco_senha %}<script>document.getElementById("senha").scrollIntoView();</script>{% endif %}
+{% endblock %}

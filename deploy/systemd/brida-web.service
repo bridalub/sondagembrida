@@ -1,0 +1,15 @@
+[Unit]
+Description=BRIDA Prospeccao - site (Gunicorn)
+After=network.target postgresql.service
+
+[Service]
+User=brida
+Group=brida
+WorkingDirectory=/opt/brida-prospeccao
+EnvironmentFile=/opt/brida-prospeccao/.env
+ExecStart=/opt/brida-prospeccao/.venv/bin/gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 3 --timeout 120 --access-logfile -
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

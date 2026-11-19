@@ -1,0 +1,321 @@
+{% extends "carteira/base.html" %}
+{% load carteira_tags %}
+{% block title %}{{ e.nome_fantasia|default:e.nome }}{% endblock %}
+{% block content %}
+<a class="voltar" href="{{ voltar_url }}">{% include "carteira/_icone.html" with nome="voltar" %}Voltar aos leads</a>
+
+{# 1. Identificação, CNPJ e situação cadastral #}
+<div class="page-head">
+  <div>
+    <h1>{{ e.nome_fantasia|default:e.razao_social|default:e.nome }}</h1>
+    {% if e.razao_social and e.razao_social != e.nome_fantasia %}<p class="lead quebra" style="margin-bottom:6px">{{ e.razao_social }}</p>{% endif %}
+    <div class="acoes" style="gap:6px 14px">
+      {% if e.cnpj %}<span><span class="mut peq">CNPJ</span> <strong class="cnpj">{{ e.cnpj_formatado }}</strong>
+        <button type="button" class="icone-btn" style="min-height:32px" data-copy="{{ e.cnpj_formatado }}" data-copy-rotulo="CNPJ" aria-label="Copiar CNPJ {{ e.cnpj_formatado }}">{% include "carteira/_icone.html" with nome="copiar" %}</button>
+        <span class="mut peq">{{ e.tipo_estabelecimento }}</span></span>
+      {% else %}<span class="tag contorno">CNPJ não localizado</span>{% endif %}
+      <span>{{ e.cidade|default:"Município desconhecido" }}{% if e.uf %}/{{ e.uf }}{% endif %}</span>
+    </div>
+    {% with assoc=e.cnpjs_associados.all %}{% if assoc %}
+    <div class="acoes peq" style="margin-top:6px;gap:6px" aria-label="CNPJs associados">
+      <span class="mut">CNPJs associados:</span>
+      {% for c in assoc %}{% if c.cnpj != e.cnpj %}<span class="chip" title="{{ c.observacao }}">{{ c.cnpj_formatado }} · {{ c.get_origem_display|lower }}</span>{% endif %}{% endfor %}
+      {% for c in assoc %}{% if c.cnpj == e.cnpj and c.origem == "ATENDIMENTO" %}<span class="chip ok" title="{{ c.observacao }}">principal confirmado com o cliente</span>{% endif %}{% endfor %}
+    </div>{% endif %}{% endwith %}
+    <div class="acoes" style="margin-top:8px;gap:6px">
+      <span class="tag {% if e.situacao_cadastral == 'ATIVA' %}ok{% elif e.situacao_cadastral %}erro{% else %}contorno{% endif %}" title="{{ dims.identificacao.detalhe }}">{{ dims.identificacao.rotulo }}</span>
+      <span class="tag contorno" title="{{ dims.salesforce.detalhe }}">{{ dims.salesforce.rotulo }}</span>
+      <span class="tag contorno" title="{{ dims.contato.detalhe }}">{{ dims.contato.rotulo }}</span>
+      {% if carteira_em %}<span class="mut peq">Carteira de {{ carteira_em|date:"d/m/Y H:i" }}</span>{% endif %}
+      <span class="tag {% if e.bloqueada_origem %}erro{% else %}contorno{% endif %}" title="Bloqueio interno no Protheus/Salesforce – diferente da situação na Receita">Bloqueio interno: {% if e.bloqueada_origem %}bloqueada{% else %}não{% endif %}</span>
+      {% if not e.cnpj %}<span class="tag contorno">Sem conferência no Salesforce: CNPJ não localizado</span>
+      {% elif op and op.tipo != "NOVA_EXTERNA" %}<span class="tag {{ op.tipo }}" title="{{ sit_detalhe }}">Conhecida no Salesforce</span>
+      {% else %}<span class="tag {{ sit }}" title="{{ sit_detalhe }}">Salesforce: {{ sit_label|lower }}</span>{% endif %}
+      {% if etapa %}<span class="tag {% if etapa.0 == 'retorno' %}RETORNO_AGENDADO{% elif etapa.0 == 'primeira' %}LIBERADA{% elif etapa.0 == 'conferir' %}NOVA{% else %}info{% endif %}">{% if etapa.0 == "primeira" %}Novo lead, ainda não abordado{% elif etapa.0 == "andamento" %}Em acompanhamento{% else %}{{ etapa.1 }}{% endif %}</span>{% endif %}
+    </div>
+  </div>
+  <div class="acoes">
+    {% if pode_abordar and op and op.status in "NOVA LIBERADA" %}
+      <a class="btn so-empilhado" href="{% url 'carteira:registrar_abordagem' e.pk %}?proximo={% url 'prospeccao:empresa' e.pk %}">{% include "carteira/_icone.html" with nome="registrar" %}Registrar abordagem</a>
+      <p class="peq mut">Uma conversa de identificação pode ser registrada com a situação cadastral ainda pendente. O telefone do cadastro continua disponível, marcado como a conferir. Liberar para venda exige CNPJ associado, situação ATIVA confirmada e ausência na carteira utilizada.</p>
+    {% endif %}
+    {% if eh_adm and op and op.status == "NOVA" %}
+      <form method="post" action="{% url 'prospeccao:liberar' op.pk %}">{% csrf_token %}<button class="btn azul" title="Confere CNPJ e cruzamento com o Salesforce antes de liberar">Conferir e liberar para abordagem</button></form>
+    {% endif %}
+  </div>
+</div>
+
+{% if unidades|length > 1 or unidades and not e.cnpj %}
+<section class="card" id="unidades" aria-labelledby="t-unidades" style="margin-bottom:16px">
+  <div class="card-cab"><h2 id="t-unidades">Unidades da empresa ({{ unidades|length }})</h2>
+    <span class="peq mut">Mesma raiz de CNPJ: matriz e filiais, com município e telefone. Confirme com o cliente qual unidade compra.</span></div>
+  <div class="tabela">
+  <table>
+    <thead><tr><th>CNPJ</th><th>Tipo</th><th>Município</th><th>Telefones</th><th>Endereço</th><th>Situação</th><th>Fonte</th></tr></thead>
+    <tbody>
+    {% for u in unidades %}
+      <tr>
+        <td><strong class="cnpj">{{ u.cnpj_formatado }}</strong>
+          <button type="button" class="icone-btn" style="min-height:28px" data-copy="{{ u.cnpj_formatado }}" data-copy-rotulo="CNPJ" aria-label="Copiar CNPJ {{ u.cnpj_formatado }}">{% include "carteira/_icone.html" with nome="copiar" %}</button>
+          {% if u.principal %}<span class="chip ok">principal</span>{% elif u.associado %}<span class="chip">associado</span>{% endif %}
+          {% if u.nome %}<div class="peq mut quebra">{{ u.nome }}</div>{% endif %}</td>
+        <td>{{ u.tipo }}</td>
+        <td>{{ u.municipio|default:"—" }}{% if u.uf %}/{{ u.uf }}{% endif %}</td>
+        <td>{% for t in u.telefones %}<div>{{ t }}</div>{% empty %}<span class="mut">—</span>{% endfor %}</td>
+        <td class="peq">{{ u.endereco|default:"—" }}</td>
+        <td>{% if u.situacao %}<span class="tag {% if u.situacao == 'ATIVA' %}ok{% else %}erro{% endif %}">{{ u.situacao }}</span>{% else %}<span class="mut">a conferir</span>{% endif %}</td>
+        <td class="peq mut">{{ u.fonte }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="peq mut" style="margin-top:6px">A base local da Receita cobre os municípios de atuação; unidades de outras regiões aparecem quando citadas na busca web.</p>
+</section>
+{% endif %}
+
+{% if e.nao_contatar %}<div class="faixa alerta" role="alert"><strong>Não contatar.</strong> {{ e.nao_contatar_motivo }} Novas abordagens estão bloqueadas.</div>{% endif %}
+{% if e.bloqueada_origem %}<div class="faixa alerta"><strong>Conta bloqueada no Protheus/Salesforce.</strong> Não entra como oportunidade nova. A situação na Receita é uma informação separada.</div>{% endif %}
+{% if sit_alertas %}<div class="faixa aviso"><strong>Atenção:</strong>{% for a in sit_alertas %} <span>{{ a }}</span>{% endfor %}</div>{% endif %}
+{% if op and not pode_abordar and not e.nao_contatar %}<div class="faixa info">Esta oportunidade está com <strong>{{ op.responsavel }}</strong>. Só o responsável ou um gestor registra abordagens.</div>{% endif %}
+
+<div class="empresa-grid">
+
+{# 2. Contatos #}
+<section class="card" id="contatos" aria-labelledby="t-contatos">
+  <div class="card-cab"><h2 id="t-contatos">Como entrar em contato</h2>
+    <span class="peq mut">Ligar, escrever ou copiar não registra abordagem.</span></div>
+  <div class="duas">
+    <div>
+      <span class="rotulo">Telefones</span>
+      <ul style="list-style:none;margin:0;padding:0">
+        {% for c in telefones %}{% include "prospeccao/_canal.html" %}{% endfor %}
+        {% if tel_cadastro_novo %}<li class="contato-item"><div class="contato-valor">{% include "carteira/_icone.html" with nome="telefone" %}<a class="v" href="{{ e.telefone|tel_href }}">{{ e.telefone }}</a>
+          <span class="contato-acoes"><button type="button" class="icone-btn" data-copy="{{ e.telefone }}" data-copy-rotulo="Telefone" aria-label="Copiar telefone {{ e.telefone }}">{% include "carteira/_icone.html" with nome="copiar" %}</button></span></div>
+          <div class="linha">{% nivel_canal "CADASTRAL" %}<span class="contato-alerta">⚠ Do cadastro – a conferir</span></div></li>{% endif %}
+        {% if not telefones and not tel_cadastro_novo %}<li class="contato-falta">{% nivel_canal "" %} Nenhum telefone encontrado.</li>{% endif %}
+      </ul>
+    </div>
+    <div>
+      <span class="rotulo">E-mails</span>
+      <ul style="list-style:none;margin:0;padding:0">
+        {% for c in emails %}{% include "prospeccao/_canal.html" %}{% endfor %}
+        {% if email_cadastro_novo %}<li class="contato-item"><div class="contato-valor">{% include "carteira/_icone.html" with nome="email" %}<a class="v email" href="mailto:{{ e.email }}">{{ e.email }}</a>
+          <span class="contato-acoes"><button type="button" class="icone-btn" data-copy="{{ e.email }}" data-copy-rotulo="E-mail" aria-label="Copiar e-mail {{ e.email }}">{% include "carteira/_icone.html" with nome="copiar" %}</button></span></div>
+          <div class="linha">{% nivel_canal "CADASTRAL" %}<span class="contato-alerta">⚠ Do cadastro – a conferir</span></div></li>{% endif %}
+        {% if not emails and not email_cadastro_novo %}<li class="contato-falta">{% nivel_canal "" %} {% if ocultos %}E-mail não disponibilizado pela fonte.{% else %}Nenhum e-mail encontrado.{% endif %}</li>{% endif %}
+        {% for d in ocultos %}<li class="peq mut">Não utilizável: {{ d.valor|truncatechars:90 }} · fonte {{ d.fonte }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% if terceiros %}
+  <div style="margin-top:12px">
+    <span class="rotulo">Contato de terceiro — possível contador</span>
+    {% if so_terceiro %}<p class="peq">Só há contato de terceiro para esta empresa. Ela continua disponível; procure um contato direto.</p>{% endif %}
+    <p class="peq mut">Não são contatos diretos da empresa. Os demais telefones e e-mails continuam válidos.</p>
+    <ul style="list-style:none;margin:0;padding:0">{% for c in terceiros %}{% include "prospeccao/_canal.html" %}{% endfor %}</ul>
+  </div>
+  {% endif %}
+  <div class="duas" style="margin-top:12px">
+    <div>
+      <span class="rotulo">Site</span>
+      <ul style="list-style:none;margin:0;padding:0">
+        {% for c in sites %}{% include "prospeccao/_canal.html" %}{% empty %}
+        {% with u=e.site|url_externa %}{% if u %}<li class="contato-item"><div class="contato-valor">{% include "carteira/_icone.html" with nome="site" %}<a class="v quebra" href="{{ u }}" target="_blank" rel="noopener noreferrer nofollow">{{ e.dominio|default:e.site }}<span class="sr-only"> (abre em nova aba)</span></a></div></li>
+        {% else %}<li class="contato-falta">Nenhum site associado.</li>{% endif %}{% endwith %}
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <span class="rotulo">Pessoas de contato</span>
+      {% for c in contatos %}
+      <div class="contato-item"><strong>{{ c.nome }}</strong>{% if c.cargo or c.papel %} <span class="mut">· {{ c.cargo|default:c.papel }}{% if c.cargo and c.cargo_confirmado %} (informado){% endif %}</span>{% endif %}{% if c.departamento %} <span class="chip">{{ c.departamento }}</span>{% endif %}
+        <div class="peq">{% if c.telefone or c.celular %}<a href="{{ c.telefone|default:c.celular|tel_href }}">{{ c.telefone|default:c.celular }}</a>{% endif %}{% if c.email %} · <a class="email" href="mailto:{{ c.email }}">{{ c.email }}</a>{% endif %}
+          <span class="mut">· origem: {% if not c.origem or c.origem == "MANUAL" %}equipe{% else %}{{ c.origem|lower }}{% endif %}</span></div></div>
+      {% empty %}<p class="mut peq" style="margin:4px 0">Nenhuma pessoa identificada. Sócios da Receita não são automaticamente compradores.</p>{% endfor %}
+      <details class="peq" style="margin-top:6px"><summary>Adicionar pessoa de contato</summary>
+        <form method="post" action="{% url 'carteira:adicionar_contato' e.pk %}" class="form-grade" style="margin-top:8px">{% csrf_token %}
+          <input type="hidden" name="proximo" value="{% url 'prospeccao:empresa' e.pk %}#contatos">
+          <div class="form-campo"><label for="p-nome">Nome <span class="obrig">obrigatório</span></label><input id="p-nome" name="nome" required maxlength="200"></div>
+          <div class="form-campo"><label for="p-cargo">Cargo</label><input id="p-cargo" name="cargo"></div>
+          <div class="form-campo"><label for="p-depto">Departamento</label><select id="p-depto" name="departamento"><option value="">Selecione</option>{% for d in departamentos %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
+          <div class="form-campo"><label for="p-tel">Telefone</label><input id="p-tel" name="telefone" inputmode="tel"></div>
+          <div class="form-campo"><label for="p-email">E-mail</label><input id="p-email" name="email" type="email"></div>
+          <div class="form-campo largo"><label for="p-obs">Observações</label><textarea id="p-obs" name="observacoes" rows="2"></textarea></div>
+          <div class="form-campo largo"><button class="btn sec btn-mini">Salvar pessoa</button></div>
+        </form></details>
+    </div>
+  </div>
+  <details class="peq" style="margin-top:12px"><summary>O que significa cada selo de contato</summary>
+    <div class="legenda-niveis" style="margin-top:8px">
+      <span>{% nivel_canal "CONFIRMADO_EQUIPE" %} alguém da equipe falou por ele</span>
+      <span>{% nivel_canal "CORROBORADO" %} apareceu em mais de uma fonte da empresa</span>
+      <span>{% nivel_canal "PUBLICADO" %} publicado em site ou fonte da empresa</span>
+      <span>{% nivel_canal "CADASTRAL" %} do cadastro, não validado (pode ser do contador)</span>
+      <span>{% nivel_canal "PISTA" %} citado em diretório ou busca, a conferir</span>
+      <span>{% nivel_canal "INCORRETO" %} marcado como errado pela equipe</span>
+    </div></details>
+</section>
+
+{# 3. Motivo da oportunidade e possíveis aplicações #}
+<section class="card" aria-labelledby="t-motivo">
+  <h2 id="t-motivo">Contexto comercial</h2>
+  {% if op %}
+    {% if op.resumo %}<p>{{ op.resumo }}</p>{% endif %}
+    <div class="acoes" style="gap:6px;margin-bottom:10px">
+      {% if op.escopo %}<span class="tag {{ op.escopo }}" title="{{ op.escopo_motivo }}">Sinal a confirmar: {{ op.get_escopo_display|lower }}</span>{% endif %}
+      <span class="tag {{ op.prioridade }}">Prioridade: {{ op.get_prioridade_display|lower }}</span>
+      <span class="tag {{ op.qualidade_dados }}">Preenchimento {{ op.get_qualidade_dados_display|lower }}{% if op.qualidade_dados != "COMPLETA" %} — ainda faltam informações{% endif %}</span>
+    </div>
+    {% if selecoes %}
+    <span class="rotulo">Motivo da seleção nas pesquisas</span>
+    {% for s in selecoes|slice:":3" %}
+    <div style="margin-bottom:8px"><strong>{{ s.frente.nome|default:"Sem frente" }}</strong> <span class="mut peq">· {{ s.pesquisa.nome }} · {{ s.get_aderencia_display }}{% if s.aderencia_humana %} (corrigida pelo gestor){% endif %}</span>
+      <ul class="motivo-lista">{% for m in s.motivos_selecao|slice:":4" %}<li>{{ m }}</li>{% endfor %}</ul></div>
+    {% endfor %}
+    {% endif %}
+    <span class="rotulo">Evidências de aplicação</span>
+    {% for ev in evid_ativas %}
+    <div style="margin-bottom:10px">
+      {% selo_evidencia ev %} <strong>{{ ev.descricao }}</strong>
+      {% if ev.trecho %}<div class="peq"><em>“{{ ev.trecho }}”</em></div>{% endif %}
+      <div class="peq mut">{{ ev.fonte }} · {{ ev.coletada_em|date:"d/m/Y" }}{% if ev.url %} · <a href="{{ ev.url }}" target="_blank" rel="noopener noreferrer nofollow">ver origem<span class="sr-only"> (abre em nova aba)</span></a>{% endif %}</div>
+    </div>
+    {% empty %}<p class="mut">Nenhuma evidência registrada ainda: aplicação a investigar. Isso não significa ausência de potencial – empresas de coleta, ônibus, agro e indústria, por exemplo, costumam ter frota ou máquinas.</p>{% endfor %}
+    {% if aplicacoes %}<p><span class="rotulo" style="display:inline">Possíveis aplicações:</span> {{ aplicacoes|join:", " }} <span class="mut peq">(possibilidade, não confirmação)</span></p>{% endif %}
+    {% if op.resumo_ia %}
+    <div class="faixa aviso" style="display:block">
+      <strong>Hipótese da IA – não confirmada.</strong> <span class="peq">{{ op.ia_modelo }}, {{ op.ia_em|date:"d/m/Y H:i" }}; baseada apenas no texto coletado.</span>
+      <p style="margin:6px 0 0">{{ op.resumo_ia }}</p>
+      {% if op.perguntas_ia %}<p class="peq" style="margin:6px 0 0">Perguntas sugeridas pela IA: {{ op.perguntas_ia|join:" · " }}</p>{% endif %}
+    </div>
+    {% endif %}
+    {% if op.perguntas %}<span class="rotulo" style="margin-top:8px">Perguntas para a conversa</span>
+      <ul class="motivo-lista" style="color:var(--tx)">{% for p in op.perguntas %}<li>{{ p }}</li>{% endfor %}</ul>{% endif %}
+  {% else %}
+    <p class="mut">Esta empresa não é uma oportunidade de prospecção. {% if e.salesforce_id %}Ela já está na carteira: <a href="{% url 'carteira:empresa_detalhe' e.pk %}">ver cadastro da carteira</a>.{% endif %}</p>
+  {% endif %}
+</section>
+
+{# 4. Próxima ação e responsável #}
+<aside class="card destaque lateral" aria-labelledby="t-prox">
+  <h2 id="t-prox">Próxima ação</h2>
+  <p style="font-weight:600">{{ proxima_acao }}</p>
+  {% if retorno_pendente %}<p class="peq">{% if retorno_pendente.retorno_atrasado %}<span class="tag atrasado">atrasado</span>{% endif %}
+    Combinado em {{ retorno_pendente.data_hora|date:"d/m/Y" }} por {{ retorno_pendente.usuario }}.</p>{% endif %}
+  {% if pode_abordar and op and op.status in "NOVA LIBERADA" %}
+  <a class="btn" style="width:100%;margin-bottom:12px" href="{% url 'carteira:registrar_abordagem' e.pk %}?proximo={% url 'prospeccao:empresa' e.pk %}">{% include "carteira/_icone.html" with nome="registrar" %}Registrar abordagem</a>
+  {% endif %}
+  {% if op %}
+  <span class="rotulo">Responsável</span>
+  <form method="post" action="{% url 'prospeccao:atribuir' op.pk %}" class="acoes" style="margin-bottom:12px">{% csrf_token %}
+    {% if user.is_staff %}
+      <label class="sr-only" for="resp-sel">Responsável</label>
+      <select name="usuario" id="resp-sel" style="flex:1 1 160px"><option value="">(sem responsável)</option>{% for u in usuarios %}<option value="{{ u.pk }}" {% if u.pk == op.responsavel_id %}selected{% endif %}>{{ u.get_username }}</option>{% endfor %}</select>
+      <button class="btn sec btn-mini">Atribuir</button>
+    {% else %}
+      <strong>{{ op.responsavel|default:"Ninguém" }}</strong>
+      {% if not op.responsavel %}<input type="hidden" name="usuario" value="eu"><button class="btn sec btn-mini">Assumir</button>{% endif %}
+    {% endif %}
+  </form>
+  <dl class="dados peq" style="grid-template-columns:auto 1fr">
+    <dt>Situação</dt><dd>{{ op.get_status_display }}</dd>
+    <dt>Cruzado em</dt><dd>{{ op.cruzado_em|date:"d/m/Y H:i"|default:"—" }}{% if not cruzamento.0 %} <span class="tag aviso">sincronização desatualizada</span>{% endif %}</dd>
+    {% if op.liberada_em %}<dt>Liberada</dt><dd>{{ op.liberada_em|date:"d/m/Y" }}{% if op.liberada_por %} por {{ op.liberada_por }}{% endif %}</dd>{% endif %}
+  </dl>
+  <details class="peq" style="margin-top:10px"><summary>Revisar prioridade{% if user.is_staff %} ou descartar{% endif %}</summary>
+    <form method="post" action="{% url 'prospeccao:prioridade' op.pk %}" style="margin-top:8px">{% csrf_token %}
+      <div class="form-campo"><label for="{{ prioridade_form.prioridade.id_for_label }}">Nova prioridade</label>{{ prioridade_form.prioridade }}</div>
+      <div class="form-campo"><label for="prio-motivo">Motivo <span class="obrig">obrigatório</span></label><input id="prio-motivo" name="motivo" required maxlength="255"></div>
+      <button class="btn sec btn-mini">Revisar prioridade</button></form>
+    {% if user.is_staff %}
+      {% if op.status != "DESCARTADA" %}
+      <form method="post" action="{% url 'prospeccao:descartar' op.pk %}" style="margin-top:12px">{% csrf_token %}
+        <div class="form-campo"><label for="desc-motivo">Motivo do descarte <span class="obrig">obrigatório</span></label><input id="desc-motivo" name="motivo" required maxlength="255"></div>
+        <button class="btn perigo btn-mini">Descartar oportunidade</button></form>
+      {% else %}
+      <form method="post" action="{% url 'prospeccao:reabrir' op.pk %}" style="margin-top:12px">{% csrf_token %}
+        <div class="form-campo"><label for="reab-motivo">Motivo</label><input id="reab-motivo" name="motivo" maxlength="255"></div>
+        <button class="btn sec btn-mini">Reabrir</button></form>
+      {% endif %}
+    {% endif %}
+    <form method="post" action="{% url 'prospeccao:reavaliar' e.pk %}" style="margin-top:12px">{% csrf_token %}<button class="btn ghost btn-mini">Reavaliar cruzamento com a carteira</button></form>
+  </details>
+  {% endif %}
+</aside>
+
+{# 5. Histórico de abordagens e retornos #}
+<section class="card" aria-labelledby="t-hist">
+  <div class="card-cab"><h2 id="t-hist">Histórico de abordagens e retornos</h2>{% if abordagens %}<span class="mut peq">{{ abordagens|length }} registro{{ abordagens|length|pluralize }}</span>{% endif %}</div>
+  {% if abordagens %}
+  <ul class="historico">
+    {% for a in abordagens %}
+    <li class="{% if a.houve_conversa %}conversa{% endif %}">
+      <div class="quando">{{ a.data_hora|date:"d/m/Y H:i" }} · {{ a.usuario }} · {{ a.get_canal_display }}{% if a.contato %} · {{ a.contato.nome }}{% endif %}</div>
+      <span class="tag {% if a.houve_conversa %}CONVERSA_REALIZADA{% else %}TENTATIVA_SEM_RESPOSTA{% endif %}">{{ a.get_resultado_display }}</span>
+      {% if a.observacoes %}<div class="peq quebra" style="margin-top:4px">{{ a.observacoes|linebreaksbr }}</div>{% endif %}
+      {% if a.valor_orcamento or a.anexo_orcamento %}<div class="peq" style="margin-top:4px"><strong>Orçamento:</strong>{% if a.valor_orcamento %} R$ {{ a.valor_orcamento|floatformat:2 }}{% endif %}
+        {% if a.anexo_orcamento %}· <a href="{% url 'carteira:anexo_orcamento' a.pk %}" target="_blank" rel="noopener">ver arquivo</a>{% endif %}</div>{% endif %}
+      {% if a.cnpj_confirmado %}<div class="peq" style="margin-top:4px"><strong>CNPJ confirmado:</strong> <span class="cnpj">{{ a.cnpj_confirmado }}</span>{% if a.cliente_situacao %} · {{ a.get_cliente_situacao_display }}{% if a.cliente_ultima_compra %} (última compra {{ a.cliente_ultima_compra|date:"d/m/Y" }}){% endif %}{% endif %}</div>{% endif %}
+      {% if a.proxima_acao or a.data_retorno %}<div class="peq" style="margin-top:4px"><strong>Próximo passo:</strong> {{ a.proxima_acao|default:"retorno" }}{% if a.data_retorno %} em {{ a.data_retorno|date:"d/m/Y" }}
+        {% if a.retorno_concluido %}<span class="tag ok">concluído</span>{% elif a.retorno_atrasado %}<span class="tag atrasado">atrasado</span>{% else %}<span class="tag RETORNO_AGENDADO">pendente</span>{% endif %}{% endif %}</div>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="mut">Nenhuma abordagem registrada. Depois de ligar, escrever ou visitar, use “Registrar abordagem” para guardar o resultado e o próximo passo.</p>
+  {% endif %}
+  {% if decisoes %}
+  <details style="margin-top:12px"><summary>Decisões da equipe sobre esta oportunidade ({{ decisoes|length }})</summary>
+    <ul class="historico" style="margin-top:10px">{% for d in decisoes %}<li><div class="quando">{{ d.criada_em|date:"d/m/Y H:i" }} · {{ d.usuario }}</div>{{ d.get_tipo_display|default:d.tipo }}{% if d.motivo %}: {{ d.motivo }}{% endif %}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+</section>
+
+{# 6. Fontes, evidências e informações complementares #}
+<section class="card" aria-labelledby="t-fontes">
+  <details>
+    <summary><h2 id="t-fontes" style="display:inline">Fontes, evidências e informações complementares</h2></summary>
+    <div class="duas" style="margin-top:12px">
+      <div>
+        <h3>Cadastro</h3>
+        <dl class="dados peq">
+          <dt>Atividade (CNAE)</dt><dd>{% if e.cnae %}{{ e.cnae }} – {{ e.atividade_principal }}{% else %}{{ ""|nd }}{% endif %}
+            {% if e.cnaes_secundarios %}<details><summary>{{ e.cnaes_secundarios|length }} atividade(s) secundária(s)</summary>{% for c in e.cnaes_secundarios %}{{ c.codigo }} – {{ c.descricao }}<br>{% endfor %}</details>{% endif %}</dd>
+          <dt>Situação cadastral</dt><dd>{{ e.situacao_cadastral|nd }}{% if e.motivo_situacao_cadastral and e.motivo_situacao_cadastral != "SEM MOTIVO" %} – {{ e.motivo_situacao_cadastral }}{% endif %}
+            {% if e.situacao_cadastral_data %}<br><span class="mut">Data da situação cadastral: {{ e.situacao_cadastral_data|date:"d/m/Y" }} (dia em que a fonte registrou a mudança; não é a data da consulta)</span>{% endif %}
+            {% if e.situacao_cadastral_fonte %}<br><span class="mut">Fonte: {{ e.situacao_cadastral_fonte }}.
+              {% if "competência" in e.situacao_cadastral_fonte or "competencia" in e.situacao_cadastral_fonte %}Competência da base: {{ e.situacao_cadastral_referencia|date:"d/m/Y"|default:"?" }} (primeiro dia do mês da carga local; não é a data em que consultamos).{% elif e.situacao_cadastral_referencia %}Data da consulta: {{ e.situacao_cadastral_referencia|date:"d/m/Y" }}.{% endif %}
+            </span>{% endif %}</dd>
+          <dt>Bloqueio interno</dt><dd>{% if e.bloqueada_origem %}Bloqueada no Protheus/Salesforce{% else %}Não bloqueada{% endif %}</dd>
+          <dt>Data de abertura</dt><dd>{% if e.data_abertura %}{{ e.data_abertura|date:"d/m/Y" }} ({{ e.tempo_empresa_anos }} anos) — início do CNPJ na fonte, não a situação nem a consulta{% else %}{{ ""|nd }}{% endif %}</dd>
+          <dt>Porte / natureza</dt><dd>{{ e.porte|default:"—" }} / {{ e.natureza_juridica|default:"—" }}</dd>
+          <dt>Endereço</dt><dd>{{ e.endereco|default:"" }} {{ e.cidade|nd }}/{{ e.uf|default:"?" }} {% if e.cep %}CEP {{ e.cep }}{% endif %}</dd>
+          <dt>Segmento (carteira)</dt><dd>{{ e.segmento_normalizado|default:e.segmento|nd }}</dd>
+          {% if e.salesforce_id %}<dt>Vendedor / coordenador</dt><dd>{{ e.vendedor|default:"—" }} / {{ e.coordenador|default:"—" }}</dd>
+          <dt>Carteira</dt><dd><a href="{% url 'carteira:empresa_detalhe' e.pk %}">ver cadastro da carteira</a></dd>{% endif %}
+        </dl>
+        {% if op %}
+        <h3 style="margin-top:14px">Critérios da prioridade</h3>
+        <ul class="motivo-lista" style="color:var(--tx)">{% for c in op.prioridade_criterios %}<li>{{ c }}</li>{% empty %}<li class="mut">—</li>{% endfor %}</ul>
+        {% if op.pendencias_dados %}<h3 style="margin-top:10px">Pendências de dados</h3><ul class="motivo-lista">{% for p in op.pendencias_dados %}<li>{{ p }}</li>{% endfor %}</ul>{% endif %}
+        {% if op.alertas %}<h3 style="margin-top:10px">Alertas</h3><ul class="motivo-lista">{% for a in op.alertas %}<li>{{ a }}</li>{% endfor %}</ul>{% endif %}
+        {% endif %}
+      </div>
+      <div>
+        <h3>Onde a empresa foi encontrada</h3>
+        <ul class="motivo-lista" style="color:var(--tx)">{% for c in candidatos %}<li><a href="{% url 'prospeccao:candidato' c.pk %}">{{ c.nome }}</a> · {{ c.fonte.nome }} · identificação {{ c.metodo_identificacao|default:"—" }} {{ c.get_confianca_display }}{% if c.url_referencia %} · <a href="{{ c.url_referencia }}" target="_blank" rel="noopener noreferrer nofollow">origem</a>{% endif %}</li>{% empty %}<li class="mut">—</li>{% endfor %}</ul>
+        <h3 style="margin-top:10px">Registros no Salesforce</h3>
+        <ul class="motivo-lista" style="color:var(--tx)">{% for r in registros %}<li>{{ r.objeto }} {{ r.id_origem }}{% if r.principal %} (principal){% endif %} <span class="mut">· visto em {{ r.ultimo_visto_em|date:"d/m/Y H:i" }}</span></li>{% empty %}<li class="mut">Não consta na carteira sincronizada.</li>{% endfor %}</ul>
+        <h3 style="margin-top:10px">Dados coletados</h3>
+        <ul class="motivo-lista" style="color:var(--tx)">{% for d in dados %}<li>{{ d.campo }}: {{ d.valor|truncatechars:60 }} <span class="mut">· {{ d.fonte }}, {{ d.coletado_em|date:"d/m/Y" }}</span></li>{% empty %}<li class="mut">—</li>{% endfor %}</ul>
+        {% if evidencias|length > evid_ativas|length %}<h3 style="margin-top:10px">Evidências inativas</h3>
+        <ul class="motivo-lista">{% for ev in evidencias %}{% if not ev.ativa %}<li>{{ ev.descricao }} <span class="mut">· {{ ev.fonte }}</span></li>{% endif %}{% endfor %}</ul>{% endif %}
+        <h3 style="margin-top:10px">Verificação técnica dos contatos</h3>
+        <ul class="motivo-lista">{% for c in canais %}{% if c.verificacao_tecnica or c.evidencia_associacao %}<li><span class="quebra">{{ c.valor }}</span>: associação {{ c.confianca_associacao|lower }} ({{ c.get_aplica_a_display|lower }}){% if c.evidencia_associacao %} – {{ c.evidencia_associacao|truncatechars:120 }}{% endif %}{% for k, v in c.verificacao_tecnica.items %} · {{ k }}={{ v }}{% endfor %}</li>{% endif %}{% empty %}<li>—</li>{% endfor %}</ul>
+      </div>
+    </div>
+  </details>
+</section>
+</div>
+{% endblock %}

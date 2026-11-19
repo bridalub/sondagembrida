@@ -1,0 +1,27 @@
+.env
+env.env
+*.sqlite3
+__pycache__/
+.venv/
+staticfiles/
+*.log
+diagnostico/dados/
+diagnostico/saida/
+logs/
+
+# anexos enviados (orçamentos) e arquivos de usuários
+media/
+# credenciais de teste e anotações locais
+*.local.txt
+# automação antiga, à parte do sistema (e-mails internos)
+Excel.py
+script_log.log*
+# scripts avulsos de manutenção e dados reais de faturamento
+_*_tmp.py
+docs/DIAGNOSTICO_DADOS_REAIS.md
+# editores e sistema
+.vscode/
+.idea/
+.claude/
+Thumbs.db
+.DS_Store

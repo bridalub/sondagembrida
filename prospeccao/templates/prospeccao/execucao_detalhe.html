@@ -1,0 +1,112 @@
+{% extends "carteira/base.html" %}
+{% block title %}Execução {{ ex.pk }}{% endblock %}
+{% block head_extra %}{% if atualizar %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
+{% block content %}
+<a class="voltar" href="{% url 'prospeccao:pesquisa_detalhe' ex.pesquisa_id %}">{% include "carteira/_icone.html" with nome="voltar" %}{{ ex.pesquisa.nome }}</a>
+<header class="pq-cab">
+  <div>
+    <h1>Busca de {{ ex.criada_em|date:"d/m/Y H:i" }}</h1>
+    <div class="pq-meta">
+      <span class="tag {{ ex.status }}">{{ ex.get_status_display }}</span>
+      <span class="chip">{{ ex.get_gatilho_display }}{% if ex.solicitada_por %} · {{ ex.solicitada_por }}{% endif %}</span>
+      {% if ex.parametros.continuacao %}<span class="chip">Continuação {{ ex.parametros.continuacao }}</span>{% endif %}
+      {% if decorrido %}<span class="chip">{{ decorrido }} s</span>{% endif %}
+      <span class="mut peq">Execução nº {{ ex.pk }}</span>
+    </div>
+  </div>
+  <div class="pq-acoes">
+    {% if ex.ativa %}
+      <form method="post" action="{% url 'prospeccao:execucao_pausar' ex.pk %}">{% csrf_token %}<button class="btn sec">Pausar</button></form>
+      <form method="post" action="{% url 'prospeccao:execucao_cancelar' ex.pk %}">{% csrf_token %}<button class="btn sec">Cancelar</button></form>
+    {% endif %}
+    {% if ex.oportunidades_novas or painel.novos_encontrados %}<a class="btn btn-grande" href="{% url 'prospeccao:oportunidades' %}?pesquisa={{ ex.pesquisa_id }}&amp;etapa=conferir">Ver empresas novas</a>{% endif %}
+  </div>
+</header>
+
+{% if ex.ativa %}<div class="faixa info" role="status"><strong>Em andamento</strong> — etapa: {{ ex.etapa|default:"aguardando processamento" }}. Esta página se atualiza a cada 5 segundos; os primeiros achados aparecem antes do fim.</div>
+{% elif ex.status == "BLOQUEADA" %}<div class="faixa aviso" role="status"><strong>Não iniciada.</strong> {{ ex.mensagem }} Nenhuma página foi lida.</div>
+{% elif motivo %}<div class="faixa aviso" role="status"><strong>{{ motivo }}.</strong> {{ mensagem_ex }}</div>
+{% elif not ex.completa %}<div class="faixa aviso" role="status"><strong>{% if ex.resultados or ex.consultas %}Resultado parcial.{% else %}Nenhuma consulta foi realizada.{% endif %}</strong> {{ ex.mensagem }}</div>
+{% endif %}
+{% if painel.aviso_carteira %}<p class="pq-nota" style="margin:-6px 0 12px">{{ painel.aviso_carteira }}</p>{% endif %}
+
+<section class="pq-kpis" aria-label="Resultado">
+  <div class="pq-kpi destaque"><span class="t">Leads completos</span>
+    <span class="n">{{ painel.leads_completos|default:0 }} <small>de {{ painel.meta|default:ex.pesquisa.quantidade_desejada }}</small></span>
+    <span class="d">CNPJ ativo, fora da carteira e com contato</span></div>
+  <a class="pq-kpi" href="{{ ind.url }}"><span class="t">Disponíveis para abordar</span><span class="n">{{ ind.disponiveis }}</span><span class="d">{{ ind.ineditas }} novas · {{ ind.reencontradas }} reencontradas</span></a>
+  <div class="pq-kpi"><span class="t">Páginas encontradas</span><span class="n">{{ painel.candidatas|default:ex.resultados }}</span><span class="d">{{ painel.empresas_unicas|default:0 }} empresas únicas</span></div>
+  <a class="pq-kpi" href="{{ ind.url_completar }}"><span class="t">Sem CNPJ</span><span class="n">{{ painel.pendentes_identificacao|default:0 }}</span><span class="d">Identificação pendente</span></a>
+  <div class="pq-kpi"><span class="t">Separadas</span><span class="n">{{ painel.fora_dos_novos|default:0 }}</span><span class="d">Salesforce {{ painel.conhecidas|default:0 }} · a conferir {{ painel.correspondencias|default:0 }}{% if painel.inativas %} · não ativas {{ painel.inativas }}{% endif %}</span></div>
+</section>
+
+{% if painel.novos_encontrados is not None %}
+<section class="card" aria-labelledby="t-funil">
+  <div class="pq-card-cab"><h2 id="t-funil">Andamento</h2></div>
+  <div class="pq-funil">
+    <div><span class="n">{{ painel.novos_encontrados }}</span><span class="t">Empresas encontradas</span></div>
+    <div><span class="n">{{ painel.novos_com_contato|default:0 }}</span><span class="t">Com contato</span></div>
+    <div><span class="n">{{ painel.identificadas|default:0 }}</span><span class="t">Com CNPJ{% if painel.cnpj_outra_cidade %} ({{ painel.cnpj_outra_cidade }} em outra cidade){% endif %}</span></div>
+    <div><span class="n">{{ painel.ativas_cruzadas|default:0 }}</span><span class="t">Ativas e fora da carteira</span></div>
+    <div><span class="n">{{ painel.leads_completos|default:0 }}</span><span class="t">Leads completos</span></div>
+  </div>
+  <p class="pq-nota">Pendências: {{ painel.pendentes_identificacao|default:0 }} sem CNPJ · {{ painel.pendentes_situacao|default:0 }} com situação pendente ou não ativa · {{ painel.ativas_sem_contato|default:0 }} ativas sem contato · {{ painel.correspondencias|default:0 }} a conferir com a carteira.
+    {% if continuacao_fim %}<br><strong>Continuação automática:</strong> {{ continuacao_fim }}{% endif %}</p>
+  {% if ex.progresso.cidades %}<p class="pq-nota"><strong>Cidades pesquisadas:</strong> {% for c, n in ex.progresso.cidades.pesquisadas.items %}{{ c }} ({{ n }}){% if not forloop.last %}, {% endif %}{% empty %}{% if ex.progresso.cidades.consultas_anteriores %}{{ ex.progresso.cidades.consultas_anteriores }} consulta(s) anteriores{% else %}nenhuma{% endif %}{% endfor %}{% if ex.progresso.cidades.pendentes %} · <strong>pendentes por limite:</strong> {{ ex.progresso.cidades.pendentes|join:", " }}{% endif %}</p>{% endif %}
+</section>
+{% endif %}
+
+<details class="pq-mais" style="margin-bottom:16px" {% if ex.erros %}open{% endif %}>
+  <summary>Detalhes técnicos e registro <span class="mut">— consultas por fonte, custo e passo a passo da execução</span>{% if ex.erros %} <span class="tag FALHA">{{ ex.erros }} erro{{ ex.erros|pluralize }}</span>{% endif %}</summary>
+  <div class="corpo">
+  <dl class="dados peq">
+    <dt>Período</dt><dd>{{ ex.iniciada_em|date:"d/m/Y H:i:s"|default:"—" }} → {{ ex.finalizada_em|date:"d/m/Y H:i:s"|default:"—" }}</dd>
+    <dt>Consultas por fonte</dt><dd>{% for k, v in ex.consultas.items %}{{ k }}: {{ v }}{% if not forloop.last %} · {% endif %}{% empty %}—{% endfor %}</dd>
+    <dt>Custo registrado</dt><dd>US$ {{ ex.custo }}{% if orc.teto %} · teto de IA desta pesquisa US$ {{ orc.teto }}{% elif orc.teto_global %} · saldo global de IA US$ {{ orc.teto_global }}{% endif %}</dd>
+    {% if ex.limites_atingidos %}<dt>Limites</dt><dd>{{ ex.limites_atingidos|join:" · " }}</dd>{% endif %}
+    {% if ex.parametros.erros_leitura %}<dt>Avisos do CSV</dt><dd>{{ ex.parametros.erros_leitura|join:"; " }}</dd>{% endif %}
+  </dl>
+  <div class="tabela" style="margin:12px 0 0"><table><tr><th>Hora</th><th>Nível</th><th>Fonte</th><th>Mensagem</th></tr>
+  {% for l in logs %}<tr><td style="white-space:nowrap">{{ l.criado_em|date:"H:i:s" }}</td><td><span class="tag {% if l.nivel == 'ERRO' %}FALHA{% elif l.nivel == 'AVISO' %}AVISO{% endif %}">{{ l.nivel }}</span></td><td>{{ l.fonte }}</td><td><code class="pequeno">{{ l.mensagem }}</code></td></tr>
+  {% empty %}<tr><td colspan="4" class="mut">Sem registros.</td></tr>{% endfor %}</table></div>
+  </div>
+</details>
+<section class="card" aria-labelledby="t-novas">
+  <div class="pq-card-cab"><h2 id="t-novas">Disponíveis para abordagem ({{ novas_prontas|length }})</h2></div>
+  <p class="mut peq">Contato encontrado continua visível mesmo quando ainda precisa de conferência. Contato confirmado é só o que a equipe marcou.</p>
+  <div class="tabela"><table><tr><th>Empresa</th><th>Cidade</th><th>Contatos</th><th>CNPJ</th><th>Por que pode interessar</th></tr>
+  {% for s in novas_prontas %}<tr><td>{% if s.id %}<a href="{% url 'prospeccao:empresa' s.id %}">{{ s.nome }}</a> <span class="mut peq">ID {{ s.id }}</span>{% else %}{{ s.nome }}{% endif %}{% if s.reencontrada %}<br><span class="tag RETORNO">Encontrada anteriormente</span>{% endif %}{% if s.tentativas %} <span class="tag TENTATIVA_SEM_RESPOSTA">{{ s.tentativas }} tentativa(s) sem resposta</span>{% endif %}</td><td>{{ s.cidade }}</td><td>
+    {% for c in s.contatos %}<div>{{ c.valor }} <span class="mut peq">{{ c.fonte }} · {{ c.situacao }}{% if c.papel %} · {{ c.papel }}{% endif %}</span></div>{% empty %}<span class="mut">Sem telefone ou e-mail</span>{% endfor %}
+    {% if s.divergencia %}<div class="mut peq">Contatos diferentes encontrados; conferir na abordagem.</div>{% endif %}
+  </td><td class="cnpj">{{ s.cnpj|default:"CNPJ não localizado" }}</td><td>{{ s.motivo }}{% if s.pendencias %}<br><span class="mut peq">{{ s.pendencias|join:"; " }}</span>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="5" class="mut">Nenhum lead disponível.</td></tr>{% endfor %}</table></div>
+</section>
+<details class="pq-mais" style="margin-bottom:16px"><summary id="t-corresp">Possível correspondência ({{ correspondencias|length }})</summary><div class="corpo">
+  <p class="mut peq">Não é cliente conhecido e não é novidade confirmada. A pesquisa não para por causa disso.</p>
+  <div class="tabela"><table><tr><th>Empresa</th><th>Cidade</th><th>Contatos</th><th>Motivo</th></tr>
+  {% for s in correspondencias %}<tr><td>{{ s.nome }}</td><td>{{ s.cidade }}</td><td>
+    {% for c in s.contatos %}<div>{{ c.valor }} <span class="mut peq">{{ c.fonte }} · {{ c.situacao }}</span></div>{% empty %}<span class="mut">—</span>{% endfor %}
+  </td><td>{{ s.motivo }}</td></tr>
+  {% empty %}<tr><td colspan="4" class="mut">Nenhuma.</td></tr>{% endfor %}</table></div>
+</div></details>
+<details class="pq-mais" style="margin-bottom:16px"><summary id="t-inativa">CNPJ não ativo ({{ inativas|length }})</summary><div class="corpo">
+  <p class="mut peq">Fora da lista padrão de abordagem. O registro permanece.</p>
+  <div class="tabela"><table><tr><th>Empresa</th><th>CNPJ</th></tr>
+  {% for s in inativas %}<tr><td>{{ s.nome }}</td><td class="cnpj">{{ s.cnpj }}</td></tr>
+  {% empty %}<tr><td colspan="2" class="mut">Nenhuma.</td></tr>{% endfor %}</table></div>
+</div></details>
+<details class="pq-mais" style="margin-bottom:16px"><summary id="t-sf">Conhecidas no Salesforce ({{ conhecidas_sf|length }})</summary><div class="corpo">
+  <p class="mut peq">Fora das novas oportunidades. Não entram na meta.</p>
+  <div class="tabela"><table><tr><th>Empresa</th><th>CNPJ</th></tr>
+  {% for s in conhecidas_sf %}<tr><td>{{ s.nome }}</td><td class="cnpj">{{ s.cnpj }}</td></tr>
+  {% empty %}<tr><td colspan="2" class="mut">Nenhuma nesta pesquisa.</td></tr>{% endfor %}</table></div>
+</div></details>
+<details class="pq-mais" style="margin-bottom:16px"><summary id="t-cand">Empresas encontradas nesta execução ({{ total_cand }})</summary><div class="corpo">
+  <div class="tabela"><table><tr><th>Nome na fonte</th><th>Fonte</th><th>Município</th><th>Identificação</th><th>CNPJ</th><th>Empresa</th></tr>
+  {% for c in candidatos %}<tr><td><a href="{% url 'prospeccao:candidato' c.pk %}">{{ c.nome }}</a><br><span class="mut peq">{{ c.atividade_fonte|truncatechars:70 }}</span></td><td>{{ c.fonte.nome }}</td><td>{{ c.cidade }}</td>
+  <td>{% if c.status == "PENDENTE" %}<span class="tag PENDENTE">Encontrada — identificação em andamento</span>{% else %}<span class="tag {{ c.status }}">{{ c.get_status_display }}</span>{% endif %}{% if c.sugestoes %}<br><span class="mut peq">{{ c.sugestoes|length }} possível(is) correspondência(s)</span>{% endif %}</td><td class="cnpj">{{ c.cnpj_candidato }}</td>
+  <td>{% if c.empresa %}<a href="{% url 'prospeccao:empresa' c.empresa_id %}">{{ c.empresa.nome|truncatechars:40 }}</a>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6" class="mut">Nenhuma.</td></tr>{% endfor %}</table></div>
+  <p class="mut peq">Candidata encontrada ainda não é oportunidade validada. O CNPJ, quando surgir, é associado a este mesmo registro.</p>
+</div></details>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "carteira/base.html" %}
+{% block title %}Histórico de execução{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Histórico de execução</h1>
+    <p class="lead">Cada vez que uma pesquisa buscou empresas: quando, quanto encontrou e se parou em algum limite. Informação técnica para gestores.</p>
+  </div>
+</div>
+{% if pagina.object_list %}
+<div class="tabela"><table>
+<tr><th>Quando</th><th>Pesquisa</th><th>Origem</th><th>Situação</th><th>Encontradas</th><th>Identificadas</th><th>Sem identificação</th><th>Já no Salesforce</th><th>Novas</th><th>Erros</th></tr>
+{% for e in pagina %}<tr>
+<td><a href="{% url 'prospeccao:execucao_detalhe' e.pk %}">{{ e.criada_em|date:"d/m/Y H:i" }}</a><br><span class="mut peq">nº {{ e.pk }}</span></td>
+<td><a href="{% url 'prospeccao:pesquisa_detalhe' e.pesquisa_id %}">{{ e.pesquisa.nome }}</a></td>
+<td>{{ e.get_gatilho_display }}{% if e.solicitada_por %}<br><span class="mut peq">{{ e.solicitada_por }}</span>{% endif %}</td>
+<td><span class="tag {{ e.status }}">{{ e.get_status_display }}</span>{% if not e.completa and not e.ativa %}<br><span class="mut peq">resultado parcial</span>{% endif %}</td>
+<td>{{ e.resultados }}</td><td>{{ e.identificados }}</td><td>{{ e.pendentes }}</td><td>{{ e.conhecidos_carteira }}</td><td>{{ e.oportunidades_novas }}</td><td>{{ e.erros }}</td></tr>
+{% endfor %}
+</table></div>
+<nav class="pag" aria-label="Paginação"><span class="mut">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+  <span class="acoes">{% if pagina.has_previous %}<a class="btn sec btn-mini" href="?page={{ pagina.previous_page_number }}">← Anterior</a>{% endif %}
+  {% if pagina.has_next %}<a class="btn sec btn-mini" href="?page={{ pagina.next_page_number }}">Próxima →</a>{% endif %}</span></nav>
+{% else %}
+<div class="card vazio"><h2>Nenhuma execução ainda</h2><p>As execuções aparecem aqui quando alguém clica em “Executar busca” numa pesquisa.</p>
+  <div class="acoes"><a class="btn sec" href="{% url 'prospeccao:pesquisas' %}">Ver pesquisas</a></div></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "carteira/base.html" %}
+{% load humanize %}
+{% block title %}{{ p.nome }}{% endblock %}
+{% block content %}
+<a class="voltar" href="{% url 'prospeccao:pesquisas' %}">{% include "carteira/_icone.html" with nome="voltar" %}Pesquisas</a>
+
+<header class="pq-cab">
+  <div>
+    <h1>{{ p.nome }}</h1>
+    <div class="pq-meta">
+      {% if p.ativa %}<span class="chip ok">Ativa</span>{% else %}<span class="chip pausa">Pausada</span>{% endif %}
+      <span class="chip" title="{{ cidades_lista|join:', ' }}">{{ cidades_lista|length }} município{{ cidades_lista|length|pluralize }} · {{ p.uf }}</span>
+      <span class="chip">{{ p.frentes.count }} perfi{{ p.frentes.count|pluralize:"l,s" }} de cliente</span>
+      <span class="chip">Meta: {{ meta }} lead{{ meta|pluralize }}</span>
+    </div>
+  </div>
+  <div class="pq-acoes">
+    {% if user.is_staff %}
+      <a class="btn sec" href="{% url 'prospeccao:pesquisa_editar' p.pk %}">Editar</a>
+      <form method="post" action="{% url 'prospeccao:pesquisa_alternar' p.pk %}">{% csrf_token %}<button class="btn sec">{% if p.ativa %}Pausar{% else %}Ativar{% endif %}</button></form>
+    {% endif %}
+    {% if ult and ult.ativa %}
+      <a class="btn azul btn-grande" href="{% url 'prospeccao:execucao_detalhe' ult.pk %}">Busca em andamento · acompanhar</a>
+    {% elif p.ativa and not conf.impedimentos %}
+      <form method="post" action="{% url 'prospeccao:pesquisa_executar' p.pk %}" data-confirma="Buscar novos leads agora, dentro do orçamento e da franquia já autorizados?">{% csrf_token %}
+        <button class="btn-grande">{% include "carteira/_icone.html" with nome="executar" %}Buscar novos leads</button></form>
+    {% endif %}
+  </div>
+</header>
+
+{% if conf.impedimentos and p.ativa %}
+<div class="faixa aviso" role="status"><strong>A busca não pode começar.</strong>
+  {% for i in conf.impedimentos %}{{ i.falta }} — {{ i.como }}.{% if not forloop.last %} {% endif %}{% endfor %}
+  {% if user.is_staff %}<a href="{% url 'prospeccao:pesquisa_editar' p.pk %}">Corrigir configuração</a>{% endif %}</div>
+{% elif proximo %}
+<div class="faixa info"><strong>Próximo passo:</strong> <a href="{{ proximo_url }}">{{ proximo }}</a></div>
+{% endif %}
+
+<section class="pq-kpis" aria-label="Resultados desta pesquisa">
+  <a class="pq-kpi destaque" href="{{ ind.url_validado }}">
+    <span class="t">Leads completos</span>
+    <span class="n">{{ completos }} <small>de {{ meta }}</small></span>
+    <span class="pq-barra" role="img" aria-label="{{ pct_meta }}% da meta"><span style="width:{{ pct_meta }}%"></span></span>
+    <span class="d">CNPJ ativo, fora da carteira e com contato</span>
+  </a>
+  <a class="pq-kpi" href="{{ ind.url }}"><span class="t">Disponíveis para abordar</span><span class="n">{{ ind.disponiveis|intcomma }}</span>
+    <span class="d">{{ ind.ineditas }} novas · {{ ind.reencontradas }} reencontradas</span></a>
+  <a class="pq-kpi" href="{% url 'prospeccao:oportunidades' %}?pesquisa={{ p.pk }}&amp;etapa=conferir"><span class="t">A conferir</span><span class="n">{{ n_ops_conferir|intcomma }}</span>
+    <span class="d">Novas, ainda não liberadas</span></a>
+  <a class="pq-kpi" href="{{ ind.url_completar }}"><span class="t">Sem CNPJ</span><span class="n">{{ ind.completar_cnpj|intcomma }}</span>
+    <span class="d">Identificação pendente</span></a>
+  <a class="pq-kpi" href="{% url 'prospeccao:oportunidades' %}?pesquisa={{ p.pk }}&amp;etapa=andamento"><span class="t">Em acompanhamento</span><span class="n">{{ ind.acompanhamento|intcomma }}</span>
+    <span class="d">Contato efetivo registrado</span></a>
+  <a class="pq-kpi" href="{{ ind.url_conhecidas }}"><span class="t">Já no Salesforce</span><span class="n">{{ ind.conhecidas_lista|intcomma }}</span>
+    <span class="d">Clientes e leads conhecidos</span></a>
+</section>
+
+<div class="pq-grade">
+  <div>
+    {% if painel %}
+    <section class="card" aria-labelledby="t-funil">
+      <div class="pq-card-cab"><h2 id="t-funil">Andamento da busca</h2>
+        {% if ult %}<a href="{% url 'prospeccao:execucao_detalhe' ult.pk %}" class="peq">Ver última busca</a>{% endif %}</div>
+      <div class="pq-funil">
+        <div><span class="n">{{ painel.novos_encontrados|default:0 }}</span><span class="t">Empresas encontradas</span></div>
+        <div><span class="n">{{ painel.novos_com_contato|default:0 }}</span><span class="t">Com contato</span></div>
+        <div><span class="n">{{ painel.identificadas|default:0 }}</span><span class="t">Com CNPJ</span></div>
+        <div><span class="n">{{ painel.ativas_cruzadas|default:0 }}</span><span class="t">Ativas e fora da carteira</span></div>
+        <div><span class="n">{{ painel.leads_completos|default:0 }}</span><span class="t">Leads completos</span></div>
+      </div>
+      {% if painel.pendentes_identificacao or painel.correspondencias %}
+      <p class="pq-nota">Pendências: {{ painel.pendentes_identificacao|default:0 }} sem CNPJ{% if painel.cnpj_outra_cidade %} · {{ painel.cnpj_outra_cidade }} com CNPJ em outra cidade{% endif %} · {{ painel.correspondencias|default:0 }} a conferir com a carteira.</p>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="card" aria-labelledby="t-atalhos">
+      <div class="pq-card-cab"><h2 id="t-atalhos">Listas desta pesquisa</h2></div>
+      <nav class="pq-atalhos" aria-label="Listas">
+        <a href="{{ ind.url }}">Disponíveis <b>{{ ind.disponiveis }}</b></a>
+        <a href="{{ ind.url_validado }}">Cadastro validado <b>{{ ind.validado }}</b></a>
+        <a href="{{ ind.url_completar }}">Completar CNPJ <b>{{ ind.completar_cnpj }}</b></a>
+        <a href="{{ ind.url_conferir_cadastro }}">Conferir identidade <b>{{ ind.conferir_cadastro }}</b></a>
+        <a href="{{ ind.url_conhecidas }}">Conhecidas <b>{{ ind.conhecidas_lista }}</b></a>
+        <a href="{% url 'prospeccao:oportunidades' %}?pesquisa={{ p.pk }}&amp;etapa=todas&amp;escopo=todos">Todas <b>{{ n_ops }}</b></a>
+      </nav>
+      <p class="pq-nota"><a href="{{ ind.url_export }}">Exportar disponíveis (CSV)</a> · <a href="{{ ind.url_validado_export }}">Exportar validados (CSV)</a>
+        {% if p.modo == "PLANEJADA" %} · <a href="{% url 'prospeccao:lista' p.pk %}">Lista comercial por etapa</a>{% endif %}</p>
+    </section>
+
+    <section class="card" aria-labelledby="t-ex">
+      <div class="pq-card-cab"><h2 id="t-ex">Últimas buscas</h2><a class="peq" href="{% url 'prospeccao:execucoes' %}">Histórico completo</a></div>
+      {% if execucoes %}
+      <div class="tabela" style="margin:0;box-shadow:none"><table>
+        <tr><th>Quando</th><th>Situação</th><th>Encontradas</th><th>Identificadas</th><th>Leads completos</th></tr>
+        {% for e in execucoes|slice:":8" %}<tr>
+          <td><a href="{% url 'prospeccao:execucao_detalhe' e.pk %}">{{ e.criada_em|date:"d/m H:i" }}</a>{% if e.parametros.continuacao %} <span class="mut peq">continuação</span>{% endif %}</td>
+          <td><span class="tag {{ e.status }}">{{ e.get_status_display }}</span></td>
+          <td>{{ e.progresso.painel.novos_encontrados|default:e.resultados }}</td>
+          <td>{{ e.progresso.painel.identificadas|default:e.identificados }}</td>
+          <td>{{ e.progresso.painel.leads_completos|default:"—" }}</td></tr>
+        {% endfor %}
+      </table></div>
+      {% else %}<p class="mut">Nenhuma busca ainda. Clique em <strong>Buscar novos leads</strong> para começar.</p>{% endif %}
+    </section>
+  </div>
+
+  <aside class="pq-lateral" aria-label="Configuração da pesquisa">
+    <section class="card" aria-labelledby="t-conf">
+      <div class="pq-card-cab"><h2 id="t-conf">O que procuramos</h2>
+        {% if user.is_staff %}<a class="peq" href="{% url 'prospeccao:pesquisa_editar' p.pk %}">Editar</a>{% endif %}</div>
+      <dl class="pq-lista-def">
+        <dt>Onde</dt><dd><div class="chips">{% for c in cidades_lista|slice:":8" %}<span class="chip">{{ c }}</span>{% endfor %}{% if cidades_lista|length > 8 %}<span class="chip mais" title="{{ cidades_lista|join:', ' }}">+{{ cidades_lista|length|add:"-8" }}</span>{% endif %}</div></dd>
+        <dt>Perfis</dt><dd><div class="chips">{% for f in p.frentes.all %}<span class="chip">{{ f.nome }}</span>{% empty %}<span class="mut">nenhum</span>{% endfor %}</div></dd>
+        {% if p.aplicacoes.all %}<dt>Produtos</dt><dd>{{ p.aplicacoes.count }} selecionado{{ p.aplicacoes.count|pluralize }}</dd>{% endif %}
+        <dt>Situação</dt><dd>{{ p.situacoes_receita|lower }}</dd>
+      </dl>
+      {% if p.objetivo %}<details class="peq" style="margin-top:10px"><summary>Objetivo completo</summary><p style="margin:6px 0 0">{{ p.objetivo }}</p></details>{% endif %}
+    </section>
+
+    {% if conf.avisos or conf.info or orc %}
+    <section class="card">
+      <details><summary><strong>Franquia, orçamento e avisos</strong>{% if conf.avisos %} <span class="tag aviso">{{ conf.avisos|length }} aviso{{ conf.avisos|length|pluralize }}</span>{% endif %}</summary>
+        {% for a in conf.avisos %}<p class="peq">{{ a }}</p>{% endfor %}
+        <p class="peq mut">Orçamento de IA: {% if orc.teto %}US$ {{ orc.teto }} nesta pesquisa{% else %}sem teto próprio{% endif %} · registrado US$ {{ orc.gasto|floatformat:4 }}{% if orc.teto_global is not None %} · saldo global US$ {{ orc.teto_global }}{% endif %}</p>
+        {% for i in conf.info %}<p class="peq mut">{{ i }}</p>{% endfor %}
+      </details>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <details><summary><strong>Importar lista de empresas (CSV)</strong></summary>
+        <p class="peq mut" style="margin-top:8px">Para quando a equipe já tem uma lista. Não é busca automática.</p>
+        <form method="post" enctype="multipart/form-data" action="{% url 'prospeccao:pesquisa_csv' p.pk %}">{% csrf_token %}
+          <div class="form-campo"><label for="{{ csv_form.arquivo.id_for_label }}">{{ csv_form.arquivo.label }} <span class="obrig">obrigatório</span></label>{{ csv_form.arquivo }}
+            <div class="ajuda">{{ csv_form.arquivo.help_text }}</div></div>
+          <button class="btn sec">Importar arquivo</button></form>
+      </details>
+    </section>
+  </aside>
+</div>
+{% endblock %}
