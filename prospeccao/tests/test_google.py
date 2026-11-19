@@ -291,3 +291,46 @@ class GoogleSemCreditoTests(Base):
         self.assertIn("descoberta de empresas novas segue automaticamente pela busca web da OpenAI", logs)
         self.assertIn("franquia SerpApi incluída esgotada", logs)
         self.assertIn("limite de 2 consulta(s)", logs)
+
+    def test_saldo_reservado_a_identificacao_descoberta_segue_pela_openai(self):
+        """Caso real (execução 11 da VPS): 2 buscas no Google, ambas reservadas à identificação. Antes a descoberta
+        parava sem buscar nada; agora ela segue pela OpenAI e o Google continua livre para identificar CNPJ."""
+        from prospeccao.conectores.busca_web import ListaBusca, OpenAIBusca
+        chamadas = []
+
+        def openai_falsa(self_, consulta, ctx, n=5, contexto=None):
+            chamadas.append(dict(contexto or {}))
+            self_.ultimo = {"custo": Decimal("0.01"), "medido": True, "modelo": "falso", "acoes": 1}
+            r = ListaBusca([] if (contexto or {}).get("empresa") else [{
+                "url": "https://ventonovo.com.br/", "titulo": "Vento Novo Transportes", "dominio": "ventonovo.com.br",
+                "tipo": "SITE_OFICIAL", "diretorio": False, "verificacao": "URL retornada pela ferramenta",
+                "nome_citado": "Vento Novo Transportes", "cnpj_citado": "", "municipio_citado": "Guarulhos",
+                "endereco_citado": "R. Z, 5 - Guarulhos - SP", "telefones": ["(11) 2466-7777"], "emails": []}])
+            r.analise = {"proximas_consultas": [], "justificativa": ""}
+            return r
+        conta = {"plan_name": "Free Plan", "plan_searches_left": 2, "account_status": "Active",
+                 "account_rate_limit_per_hour": 250, "this_hour_searches": 0}
+        from prospeccao.models import Execucao
+        from prospeccao.services import fila
+        from prospeccao.services.pipeline import executar
+        with mock.patch.dict("os.environ", {"OPENAI_API_KEY": "sk-teste", "PROSPECCAO_DESCOBERTA_RESERVA_MAX": "1"}), \
+                mock.patch("prospeccao.conectores.busca_web.openai_configurada", return_value=True), \
+                mock.patch.object(OpenAIBusca, "buscar", openai_falsa), \
+                mock.patch.object(OpenAIBusca, "custo_maximo", lambda self_: Decimal("0.02")), \
+                mock.patch("prospeccao.services.prontidao._ler_conta_serpapi", return_value=conta), \
+                mock.patch("prospeccao.services.prontidao.reserva_identificacao", return_value=10), \
+                mock.patch("prospeccao.services.prontidao.vagas_google_alheias", return_value=0), \
+                mock.patch("requests.Session.request", side_effect=RedeGoogle()), \
+                mock.patch.object(dg, "_ia", ia_falsa):
+            ex, _ = fila.enfileirar(self.p, Execucao.Gatilho.MANUAL)
+            with mock.patch("prospeccao.services.prontidao.em_teste", return_value=False), \
+                    mock.patch.object(dg, "identificar_pendentes_primeiro", return_value=0), \
+                    mock.patch.object(dg, "complementar_identidade", return_value=0):
+                executar(ex.pk)
+        ex.refresh_from_db()
+        desc = [c for c in chamadas if not c.get("empresa")]
+        self.assertEqual(len(desc), 1)  # PROSPECCAO_DESCOBERTA_RESERVA_MAX=1
+        self.assertFalse(ConsultaWeb.objects.filter(execucao=ex, provedor="google_serpapi", finalidade="DESCOBERTA").exists())
+        self.assertTrue(Empresa.objects.filter(nome="Vento Novo Transportes").exists())
+        logs = " ".join(LogExecucao.objects.filter(execucao=ex).values_list("mensagem", flat=True))
+        self.assertIn("Google reservado à identificação", logs)

@@ -814,16 +814,21 @@ def descobrir(execucao, ctx, est, frentes, plano, carga, municipios, sits, busca
     busca_g, orc_g = busca, orc  # Google: a identificação sempre parte dele e troca sozinha quando ele para
     via_ia = {"ativa": False, "feitas": 0, "max": max_descoberta_reserva()}
 
-    def trocar_descoberta(motivo):
-        """Franquia/velocidade do Google acabou: a descoberta de empresas NOVAS segue AUTOMATICAMENTE pela busca web
-        da OpenAI (consultas orgânicas, limite por execução e teto financeiro). Retorna True se trocou."""
+    def trocar_descoberta(motivo, bloquear_google=True):
+        """Franquia/velocidade do Google acabou (ou o saldo que resta fica para a identificação): a descoberta de
+        empresas NOVAS segue AUTOMATICAMENTE pela busca web da OpenAI (consultas orgânicas, limite por execução e teto
+        financeiro). bloquear_google=False mantém o Google para a identificação de CNPJ. Retorna True se trocou."""
         nonlocal busca, orc
-        reserva = getattr(est, "busca_id_reserva", None) or busca_reserva_identificacao(pesquisa, execucao)
+        if bloquear_google:
+            reserva = getattr(est, "busca_id_reserva", None) or busca_reserva_identificacao(pesquisa, execucao)
+        else:  # orçamento próprio da descoberta; a identificação segue no Google e troca sozinha quando ele acabar
+            reserva = busca_reserva_identificacao(pesquisa, execucao)
         if not reserva or via_ia["max"] <= 0:
             return False
-        if not orc_g.busca_bloqueada:  # a identificação também não insiste no Google
-            orc_g.busca_bloqueada = f"busca web: {motivo}"
-        est.busca_id_reserva = reserva  # mesmo orçamento da identificação reserva
+        if bloquear_google:
+            if not orc_g.busca_bloqueada:  # a identificação também não insiste no Google
+                orc_g.busca_bloqueada = f"busca web: {motivo}"
+            est.busca_id_reserva = reserva  # mesmo orçamento da identificação reserva
         busca, orc = reserva
         via_ia["ativa"] = True
         for fr in frentes:  # a OpenAI não tem Google Maps nem páginas: uma consulta por texto, sem repetir
@@ -833,7 +838,8 @@ def descobrir(execucao, ctx, est, frentes, plano, carga, municipios, sits, busca
                     vistas.add(norm_consulta(q_))
                     nova.append((q_, "openai", 0))
             filas[fr.pk] = nova
-        ctx.log(f"Google parado ({motivo[:120]}). A descoberta de empresas novas segue automaticamente pela busca web "
+        ctx.log(("Google parado" if bloquear_google else "Google reservado à identificação")
+                + f" ({motivo[:120]}). A descoberta de empresas novas segue automaticamente pela busca web "
                 f"da OpenAI (até {via_ia['max']} consulta(s) nesta execução, dentro do teto financeiro).",
                 "AVISO", "descoberta_google")
         return True
@@ -890,11 +896,13 @@ def descobrir(execucao, ctx, est, frentes, plano, carga, municipios, sits, busca
                         break
                 if disponiveis <= reserva:
                     est.motivo_fim = "reserva_identidade"
-                    filas = {k: [] for k in filas}
-                    ctx.log(f"Descoberta interrompida: {disponiveis} busca(s) incluída(s) ficam para a identificação "
-                            f"({reserva} lacuna(s) ou vaga(s) da meta).",
-                            "AVISO", "descoberta_google")
-                    break
+                    if not trocar_descoberta(f"{disponiveis} busca(s) incluída(s) ficam para a identificação; "
+                                             f"{reserva} lacuna(s) ou vaga(s) da meta", bloquear_google=False):
+                        filas = {k: [] for k in filas}
+                        ctx.log(f"Descoberta interrompida: {disponiveis} busca(s) incluída(s) ficam para a identificação "
+                                f"({reserva} lacuna(s) ou vaga(s) da meta).",
+                                "AVISO", "descoberta_google")
+                        break
             if len(feitas) >= teto_descoberta or orc.busca_bloqueada or getattr(est, "parar", False):
                 bloqueio = (orc.busca_bloqueada or "").lower()
                 if "franquia serpapi incluída esgotada" in bloqueio or "franquia serpapi incluida esgotada" in bloqueio:
