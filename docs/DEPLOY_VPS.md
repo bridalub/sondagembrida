@@ -43,9 +43,12 @@ A base da Receita (92 municípios) é grande. Se preferir não copiar, importe d
 
 ## 3. Código e dependências
 
-Copie a pasta do projeto para `/opt/brida-prospeccao` (sem `.venv`, `logs`, `db.sqlite3` e sem `env.env`), depois:
+O código vem do GitHub (`bridalub/sondagembrida`). Segredos (`.env`), banco, anexos e `Excel.py` não estão no
+repositório: o `.env` é criado na VPS (passo 4).
 
 ```bash
+sudo -u brida git clone https://github.com/bridalub/sondagembrida.git /tmp/sondagembrida
+sudo -u brida cp -a /tmp/sondagembrida/. /opt/brida-prospeccao/ && rm -rf /tmp/sondagembrida
 cd /opt/brida-prospeccao
 sudo -u brida python3.12 -m venv .venv
 sudo -u brida .venv/bin/pip install -r requirements.txt
@@ -114,6 +117,21 @@ sudo -u brida .venv/bin/python manage.py importar_receita --competencia 2026-11 
 ```
 
 Cerca de 7 GB de download; roda em fluxo e retoma se cair. Refaça todo mês com a competência nova.
+
+## Atualizar a VPS depois de um novo push
+
+```bash
+cd /opt/brida-prospeccao
+sudo -u brida git pull --ff-only
+sudo -u brida .venv/bin/pip install -r requirements.txt
+sudo -u brida .venv/bin/python manage.py migrate
+sudo -u brida .venv/bin/python manage.py collectstatic --noinput
+sudo systemctl restart brida-web brida-worker
+```
+
+Quando o repositório virar **privado**, a VPS precisa de acesso de leitura: crie uma *deploy key* (chave SSH só de
+leitura) em GitHub → repositório → Settings → Deploy keys e troque o remoto para
+`git@github.com:bridalub/sondagembrida.git`.
 
 ## 7. Conferência depois de subir
 
