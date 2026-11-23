@@ -3,49 +3,32 @@
 /* Identidade Brida dos painéis (Captação e Performance): mesma linguagem da tela de login */
 :root { --br-azul: #21275A; --br-azul-esc: #181d45; --br-azul-cl: #2f3779; --br-laranja: #EE662F; --br-laranja-cl: #ff9a6b; }
 
-/* faixa de abertura */
+/* faixa de abertura: fundo branco, textos em cinza, filete laranja embaixo */
 .mk-hero {
-  position: relative; z-index: 5; isolation: isolate; color: #e8eaf4; border-radius: 14px;  /* sem overflow: o popover da regra sai da faixa */
+  position: relative; z-index: 5; isolation: isolate; color: #4b5163; border-radius: 14px;  /* sem overflow: o popover da regra sai da faixa */
   padding: 22px 26px 24px; margin: 2px 0 18px;
   display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 24px;
-  background:
-    radial-gradient(700px 260px at 105% 130%, rgba(238,102,47,.34), transparent 62%),
-    radial-gradient(520px 260px at -8% -40%, rgba(83,91,148,.6), transparent 65%),
-    linear-gradient(150deg, #282f6c 0%, var(--br-azul) 50%, var(--br-azul-esc) 100%);
-  box-shadow: 0 10px 28px -14px rgba(24,29,69,.55);
-}
-.mk-hero::before {  /* trama fina */
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .55; border-radius: inherit;
-  background-image: linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
-  background-size: 36px 36px; mask-image: linear-gradient(90deg, #000, transparent 75%);
+  background: #fff; border: 1px solid var(--bd);
+  box-shadow: 0 1px 2px rgba(33,39,90,.06), 0 8px 22px -14px rgba(33,39,90,.25);
 }
 .mk-hero::after {  /* "b" da marca, discreto */
-  content: ""; position: absolute; z-index: -1; right: 16%; top: 0; bottom: 0; width: 200px; opacity: .07; pointer-events: none;
-  background: url("{% static 'brida/img/marca-b-negativo.svg' %}") no-repeat center top / 150px auto;
+  content: ""; position: absolute; z-index: -1; right: 16%; top: 0; bottom: 0; width: 200px; opacity: .05; pointer-events: none;
+  background: url("{% static 'brida/img/marca-b.png' %}") no-repeat center top / 150px auto;
 }
 .mk-hero > *:not(.mk-filete) { position: relative; }
 .mk-hero .mp-regra-pop { z-index: 50; }
-.mk-filete { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 0 0 14px 14px; background: linear-gradient(90deg, var(--br-laranja), #f6a04d 60%, transparent); }
+.mk-filete { position: absolute; left: -1px; right: -1px; bottom: -1px; height: 4px; border-radius: 0 0 14px 14px; background: linear-gradient(90deg, var(--br-laranja), #f6a04d 60%, transparent); }
 .mk-selo { display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; color: #ffb48f; margin-bottom: 8px; }
 .mk-selo::before { content: ""; width: 22px; height: 3px; border-radius: 2px; background: var(--br-laranja); }
-.mk-hero h1 { margin: 0 0 6px; color: #fff; font-size: 1.7rem; line-height: 1.15; letter-spacing: -.01em; }
-.mk-hero .lead { margin: 0; color: #c9cde3; max-width: 640px; }
-.mk-hero .lead b, .mk-hero h1 em { color: var(--br-laranja-cl); font-style: normal; }
+.mk-hero .mk-selo { color: #6b7287; }
+.mk-hero h1 { margin: 0 0 6px; color: #3a3f4d; font-size: 1.7rem; line-height: 1.15; letter-spacing: -.01em; }
+.mk-hero .lead { margin: 0; color: #6b7287; max-width: 640px; }
+.mk-hero .lead b, .mk-hero h1 em { color: var(--laranja-texto); font-style: normal; }
 
-/* controles dentro da faixa */
+/* controles dentro da faixa: estilo claro padrão do sistema */
 .mk-hero form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.mk-hero .bi-mes, .mk-hero .mp-mes { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.22); backdrop-filter: blur(4px); }
-.mk-hero .bi-mes a, .mk-hero .mp-mes a { color: #fff; }
-.mk-hero .bi-mes a:hover, .mk-hero .mp-mes a:hover { background: rgba(255,255,255,.12); }
-.mk-hero .bi-mes span, .mk-hero .mp-mes span { color: #fff; border-color: rgba(255,255,255,.18); }
-.mk-hero .bi-mes .off, .mk-hero .mp-mes .off { color: rgba(255,255,255,.3); }
-.mk-hero select { background-color: #fff; border-color: transparent; }
-.mk-hero .btn.sec { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.45); }
-.mk-hero .btn.sec:hover { background: rgba(255,255,255,.12); color: #fff; border-color: #fff; }
-.mk-hero .mp-regra summary { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.3); color: #fff; }
-.mk-hero .mp-regra[open] summary { border-color: var(--br-laranja); box-shadow: 0 0 0 3px rgba(238,102,47,.3); }
+.mk-hero .mp-regra[open] summary { border-color: var(--br-laranja); box-shadow: 0 0 0 3px rgba(238,102,47,.2); }
 .mk-hero .mp-regra-pop { color: var(--tx); }
-.mk-hero :focus-visible { outline-color: var(--br-laranja-cl); }
 
 /* cartões de número */
 .mk-kpi { position: relative; overflow: hidden; border-radius: 12px !important; padding-top: 16px !important; }
