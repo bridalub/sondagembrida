@@ -38,8 +38,9 @@
 .mp-barras .b i { display: block; width: 100%; }
 .mp-barras .c { background: #21275A; border-radius: 3px 3px 0 0; }
 .mp-barras .tt { background: #c6cad8; }
-.mp-eixo { display: flex; gap: 3px; font-size: 11px; color: var(--mut); }
-.mp-eixo span { flex: 1; text-align: center; min-width: 4px; }
+.mp-eixo { display: flex; gap: 3px; font-size: 11px; color: var(--mut); font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .mp-eixo { font-size: 8.5px; letter-spacing: -.04em; } }  /* todos os dias, em ordem, também no celular */
+.mp-eixo span { flex: 1 1 0; text-align: center; min-width: 4px; width: 0; white-space: nowrap; display: flex; justify-content: center; }  /* o número não alarga a coluna */
 .mp-leg { display: flex; gap: 16px; font-size: 13px; margin: 0 0 6px; }
 .mp-leg i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 .mp-lista { list-style: none; margin: 0; padding: 0; }
@@ -292,7 +293,7 @@
     <div class="mp-barras" role="img" aria-label="Empresas procuradas por dia no mês">
       {% for d in dias %}<div class="b" title="Dia {{ d.dia }}: {{ d.conversa }} conversa(s), {{ d.tentativa }} tentativa(s)"><i class="c" style="height:{{ d.alt_c }}%"></i><i class="tt" style="height:{{ d.alt_t }}%"></i></div>{% endfor %}
     </div>
-    <div class="mp-eixo" aria-hidden="true">{% for d in dias %}<span>{% if d.dia == 1 or d.dia|divisibleby:5 %}{{ d.dia }}{% endif %}</span>{% endfor %}</div>
+    <div class="mp-eixo" aria-hidden="true">{% for d in dias %}<span>{{ d.dia }}</span>{% endfor %}</div>
   </section>
 
   <div>
