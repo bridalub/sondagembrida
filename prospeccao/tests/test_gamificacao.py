@@ -102,7 +102,7 @@ class GamificacaoTests(TestCase):
         self.client.force_login(self.ana)
         r = self.client.get(url)
         self.assertEqual(r.status_code, 302)
-        lista = self.client.get(reverse("prospeccao:insight_sales"), {"aba": "procurados"})
+        lista = self.client.get(reverse("prospeccao:inside_sales"), {"aba": "procurados"})
         self.assertContains(lista, "lead de Caio")
 
     def test_cnpj_encontrado_nao_vem_preenchido(self):

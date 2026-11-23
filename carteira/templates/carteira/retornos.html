@@ -49,7 +49,7 @@
 <div class="card vazio">
   <h2>{% if aba == "atrasados" %}Nenhum retorno atrasado{% elif aba == "hoje" %}Nenhum retorno para hoje{% elif aba == "proximos" %}Nenhum retorno agendado para os próximos dias{% else %}Nenhum retorno pendente{% endif %}</h2>
   <p>Ao registrar uma abordagem com data de retorno, ela aparece aqui até ser concluída.</p>
-  <div class="acoes">{% if eh_adm %}<a class="btn sec" href="{% url 'prospeccao:oportunidades' %}?etapa=primeira">Ver empresas prontas para abordar</a>{% else %}<a class="btn sec" href="{% url 'prospeccao:insight_sales' %}">Ver leads a procurar</a>{% endif %}</div>
+  <div class="acoes">{% if eh_adm %}<a class="btn sec" href="{% url 'prospeccao:oportunidades' %}?etapa=primeira">Ver empresas prontas para abordar</a>{% else %}<a class="btn sec" href="{% url 'prospeccao:inside_sales' %}">Ver leads a procurar</a>{% endif %}</div>
 </div>
 {% endif %}
 {% endblock %}

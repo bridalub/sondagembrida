@@ -195,8 +195,8 @@ def calcular(inicio, fim, pesquisa=None, usuario=None):
         d += timedelta(days=1)
 
     # situação atual (todo o histórico): procurados x em aberto
-    from prospeccao.views_insight import base_insight
-    base = base_insight()
+    from prospeccao.views_inside import base_inside
+    base = base_inside()
     if pesquisa:
         base = base.filter(pesquisas__pk=pesquisa)
     procurados_total = Abordagem.objects.filter(empresa_id__in=empresas).values("empresa_id").distinct().count()

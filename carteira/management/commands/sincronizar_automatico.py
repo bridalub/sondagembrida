@@ -47,7 +47,7 @@ class Command(BaseCommand):
             call_command("sync_salesforce", *[f"--{p}" for p in partes], "--ultimos-dias", str(o["dias"]),
                          stdout=self.stdout, stderr=self.stderr)
             from prospeccao.services.conversao import marcar_convertidos
-            n = marcar_convertidos()  # lead com venda contada sai da base de trabalho do Insight Sales
+            n = marcar_convertidos()  # lead com venda contada sai da base de trabalho do Inside Sales
             if n:
                 self.stdout.write(f"{n} lead(s) passaram a cliente (venda confirmada por nota fiscal).")
         except CommandError as e:

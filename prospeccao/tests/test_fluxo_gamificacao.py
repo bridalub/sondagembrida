@@ -124,11 +124,11 @@ class FluxoGamificacaoTests(TestCase):
                       cnpj_confirmado=CNPJ, data_hora=timezone.now() - timedelta(minutes=5))
         ab.registrar_abordagem(a)
         self.client.force_login(self.ana)
-        lista = self.client.get(reverse("prospeccao:insight_sales"), {"aba": "procurados"})
+        lista = self.client.get(reverse("prospeccao:inside_sales"), {"aba": "procurados"})
         self.assertContains(lista, "Transportes Fluxo")
         NotaFiscal.objects.create(id_origem="NF-CONV", tipo="VENDA", empresa=self.e, data_emissao=self.hoje,
                                   valor_total=Decimal("900"))
-        lista = self.client.get(reverse("prospeccao:insight_sales"), {"aba": "procurados"})
+        lista = self.client.get(reverse("prospeccao:inside_sales"), {"aba": "procurados"})
         self.assertNotContains(lista, "Transportes Fluxo")  # virou cliente: sai da base de trabalho
         self.op.refresh_from_db()
         self.assertEqual(self.op.status, Oportunidade.Status.JA_CLIENTE)
@@ -157,14 +157,14 @@ class FluxoGamificacaoTests(TestCase):
         self.client.force_login(self.ana)
         r = self.client.post(url, {"motivo": MOTIVOS_DESCLASSIFICAR[1],
                                    "justificativa": "Liguei: é escritório de contabilidade, não tem frota."})
-        self.assertRedirects(r, reverse("prospeccao:insight_sales"), fetch_redirect_response=False)
+        self.assertRedirects(r, reverse("prospeccao:inside_sales"), fetch_redirect_response=False)
         self.op.refresh_from_db()
         self.assertEqual(self.op.status, Oportunidade.Status.DESCARTADA)
         self.assertIn("escritório de contabilidade", self.op.motivo_descarte)
         self.assertIsNone(self.op.em_atendimento_por)
         d = DecisaoRevisao.objects.get(oportunidade=self.op, tipo="DESCLASSIFICAR_LEAD")
         self.assertEqual((d.usuario, d.dados["motivo_escolhido"]), (self.ana, MOTIVOS_DESCLASSIFICAR[1]))
-        lista = self.client.get(reverse("prospeccao:insight_sales"))
+        lista = self.client.get(reverse("prospeccao:inside_sales"))
         self.assertIn("desclassificado", " ".join(str(m) for m in lista.context["messages"]))
         self.assertNotIn(self.e.pk, [o.empresa_id for o in lista.context["itens"]])  # saiu da lista
         self.assertEqual(self.pontos(self.ana)["pontos"], 0)  # desclassificar não dá pontos

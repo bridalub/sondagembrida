@@ -2,8 +2,8 @@
 
 - ADMIN: vê e faz tudo (pesquisas, buscas, configurações, carteira, painel de captação, usuários).
   É ADMIN quem é superusuário, "membro da equipe" (is_staff) ou está no grupo "ADM".
-- Insight Sales: menu Insight Sales, Minha performance e Acompanhar retornos (só os dele), mais o atendimento do
-  lead (ficha da empresa e registro do contato). Qualquer usuário que não seja ADMIN é Insight Sales.
+- Inside Sales: menu Inside Sales, Minha performance e Acompanhar retornos (só os dele), mais o atendimento do
+  lead (ficha da empresa e registro do contato). Qualquer usuário que não seja ADMIN é Inside Sales.
 
 Os usuários são cadastrados pelo ADMIN na tela Gestão → Usuários (prospeccao/views_usuarios.py).
 """
@@ -11,16 +11,17 @@ from django.contrib import messages
 from django.shortcuts import redirect
 
 GRUPO_ADM = "ADM"
-GRUPO_INSIGHT = "Insight Sales"
+GRUPO_INSIDE = "Inside Sales"
 
-# Telas (nomes de rota) liberadas ao Insight Sales. O resto redireciona para a tela dele.
-ROTAS_INSIGHT = {
-    "prospeccao:insight_sales", "prospeccao:minha_performance", "prospeccao:atendimento", "prospeccao:desclassificar",
+# Telas (nomes de rota) liberadas ao Inside Sales. O resto redireciona para a tela dele.
+ROTAS_INSIDE = {
+    "prospeccao:inside_sales", "prospeccao:minha_performance", "prospeccao:atendimento", "prospeccao:desclassificar",
     "prospeccao:empresa", "prospeccao:oportunidade",
     "carteira:registrar_abordagem", "carteira:adicionar_contato", "carteira:concluir_retorno", "carteira:retornos",
     "carteira:anexo_orcamento",
     "carteira:empresas", "carteira:empresa_detalhe", "carteira:nao_contatar",  # Carteira Salesforce
     "login", "logout",
+    "pwa_manifesto", "pwa_sw", "pwa_offline", "legado_insight",  # PWA e links antigos
 }
 
 
@@ -35,10 +36,10 @@ def eh_adm(user):
 def papel(user):
     if not getattr(user, "is_authenticated", False):
         return ""
-    return "ADM" if eh_adm(user) else "INSIGHT"
+    return "ADM" if eh_adm(user) else "INSIDE"
 
 
-PERFIS = [("ADM", "ADMIN"), ("INSIGHT", "Insight Sales")]
+PERFIS = [("ADM", "ADMIN"), ("INSIDE", "Inside Sales")]
 ROTULOS = dict(PERFIS)
 
 
@@ -47,10 +48,10 @@ def rotulo(user):
 
 
 def definir_perfil(user, perfil):
-    """Os dois únicos perfis. ADMIN = acesso total; Insight Sales = só as telas dele. Grava grupo e flags juntos."""
+    """Os dois únicos perfis. ADMIN = acesso total; Inside Sales = só as telas dele. Grava grupo e flags juntos."""
     from django.contrib.auth.models import Group
     adm = perfil == "ADM"
-    grupo = Group.objects.get_or_create(name=GRUPO_ADM if adm else GRUPO_INSIGHT)[0]
+    grupo = Group.objects.get_or_create(name=GRUPO_ADM if adm else GRUPO_INSIDE)[0]
     type(user).objects.filter(pk=user.pk).update(is_staff=adm, is_superuser=adm)
     user.is_staff = user.is_superuser = adm
     user.groups.set([grupo])
@@ -72,7 +73,7 @@ def contexto(request):
 
 
 class PapelMiddleware:
-    """Insight Sales só acessa as telas dele. Arquivos estáticos e o login passam sempre."""
+    """Inside Sales só acessa as telas dele. Arquivos estáticos e o login passam sempre."""
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -88,8 +89,8 @@ class PapelMiddleware:
             return None
         rm = request.resolver_match
         nome = f"{rm.namespace}:{rm.url_name}" if rm and rm.namespace else (rm.url_name if rm else "")
-        if nome in ROTAS_INSIGHT:
+        if nome in ROTAS_INSIDE:
             return None
         if nome != "prospeccao:visao_geral":  # a página inicial só leva à tela dele, sem aviso
-            messages.info(request, "Seu perfil é Insight Sales: leads, atendimento, sua performance e seus retornos.")
-        return redirect("prospeccao:insight_sales")
+            messages.info(request, "Seu perfil é Inside Sales: leads, atendimento, sua performance e seus retornos.")
+        return redirect("prospeccao:inside_sales")

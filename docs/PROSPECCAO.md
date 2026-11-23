@@ -526,6 +526,6 @@ exigir credencial, cadastre só o **nome** da variável de ambiente; o valor nun
 ## Papéis de usuário e trava de atendimento
 
 - **ADM**: vê e faz tudo. É ADM quem está no grupo "ADM" (ganha acesso total, inclusive /admin/), é superusuário ou "membro da equipe".
-- **Insight Sales**: qualquer outro usuário. Vê só a tela Insight Sales (leads a procurar / procurados), a ficha do lead, o registro de contato e "Minha performance". Outras telas redirecionam para a tela dele.
+- **Inside Sales**: qualquer outro usuário. Vê só a tela Inside Sales (leads a procurar / procurados), a ficha do lead, o registro de contato e "Minha performance". Outras telas redirecionam para a tela dele.
 - Cadastro de usuários: ADM em Gestão → Usuários e papéis (/admin/), escolhendo o grupo.
 - **Trava de atendimento**: "Atender" marca o lead como em atendimento pela pessoa; os outros veem "Em atendimento: Fulano" e não abrem o registro. A marcação sai ao registrar o contato, em "Liberar"/"Cancelar e liberar" ou sozinha após `PROSPECCAO_ATENDIMENTO_MIN` minutos (padrão 30). O ADM pode liberar a de qualquer pessoa e registrar mesmo com aviso.

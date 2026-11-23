@@ -1,4 +1,4 @@
-"""Disputa do mês (gamificação) do Insight Sales: pontos, ranking da equipe, sequência e conquistas.
+"""Disputa do mês (gamificação) do Inside Sales: pontos, ranking da equipe, sequência e conquistas.
 
 Regras simples e auditáveis (mesmas bases do Painel de captação; nada é gravado).
 Cada atendimento (empresa procurada no mês) vale SÓ a etapa MAIS ALTA que alcançou, sem somar as etapas:
@@ -13,7 +13,7 @@ Exceção: o ORÇAMENTO SOMA À VENDA (lead orçado que comprou = 4 + 30 por dia
 orçamento quando a venda chega. Assim, quem só acumula contatos não passa quem leva o cliente até a venda.
 Sequência: dias úteis seguidos (seg. a sex.) com pelo menos um contato registrado, até hoje.
 Tudo conta pelo momento em que o contato foi REGISTRADO no sistema (não pela data digitada no formulário).
-Quem participa: usuários do Insight Sales (ativos ou com contato no mês). ADMIN não entra no ranking.
+Quem participa: usuários do Inside Sales (ativos ou com contato no mês). ADMIN não entra no ranking.
 A venda é de quem atendeu o cliente (dono do lead) e vale uma vez por cliente, qualquer que seja o número de notas.
 """
 from collections import defaultdict
@@ -125,7 +125,7 @@ def placar(inicio, fim, pesquisa=None, hoje=None):
     from prospeccao.papeis import GRUPO_ADM, eh_adm
     ids = set(base) | set(U.objects.filter(is_active=True, is_staff=False, is_superuser=False)
                           .exclude(groups__name=GRUPO_ADM).values_list("pk", flat=True))
-    # a disputa é da equipe Insight Sales: ADMIN não entra no ranking, mesmo registrando contatos
+    # a disputa é da equipe Inside Sales: ADMIN não entra no ranking, mesmo registrando contatos
     pessoas = {u.pk: u for u in U.objects.filter(pk__in=ids) if not eh_adm(u)}
     saida = []
     for pk, u in pessoas.items():

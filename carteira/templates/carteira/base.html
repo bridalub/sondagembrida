@@ -6,6 +6,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Prospecção{% endblock %} · Brida</title>
 <link rel="icon" href="{% static 'brida/img/marca-b.png' %}">
+<link rel="manifest" href="{% url 'pwa_manifesto' %}">
+<meta name="theme-color" content="#21275A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Brida">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="{% static 'brida/pwa/apple-touch-icon.png' %}">
 {% include "carteira/_estilos.html" %}
 {% block head_extra %}{% endblock %}
 </head>
@@ -32,9 +39,9 @@
   </div>
 
   {% if not eh_adm %}
-  <div class="nav-grupo" id="grp-insight">Insight Sales</div>
-  <div role="group" aria-labelledby="grp-insight">
-  <a class="nav-item {% if n == 'insight_sales' or n == 'empresa' or n == 'registrar_abordagem' %}ativo{% endif %}" href="{% url 'prospeccao:insight_sales' %}" title="Insight Sales" {% if n == 'insight_sales' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="lista" %}<span>Insight Sales</span></a>
+  <div class="nav-grupo" id="grp-inside">Inside Sales</div>
+  <div role="group" aria-labelledby="grp-inside">
+  <a class="nav-item {% if n == 'inside_sales' or n == 'empresa' or n == 'registrar_abordagem' %}ativo{% endif %}" href="{% url 'prospeccao:inside_sales' %}" title="Inside Sales" {% if n == 'inside_sales' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="lista" %}<span>Inside Sales</span></a>
   <a class="nav-item {% if n == 'minha_performance' %}ativo{% endif %}" href="{% url 'prospeccao:minha_performance' %}" title="Minha performance" {% if n == 'minha_performance' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="frentes" %}<span>Minha performance</span></a>
   <a class="nav-item {% if n == 'retornos' %}ativo{% endif %}" href="{% url 'carteira:retornos' %}" title="Acompanhar retornos" {% if n == 'retornos' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="retorno" %}<span>Acompanhar retornos</span></a>
   </div>
@@ -47,7 +54,7 @@
   <div class="nav-grupo" id="grp-trabalho">Prospecção</div>
   <div role="group" aria-labelledby="grp-trabalho">
   <a class="nav-item {% if ns == 'prospeccao' and n == 'visao_geral' %}ativo{% endif %}" href="{% url 'prospeccao:visao_geral' %}" title="Visão geral" {% if ns == 'prospeccao' and n == 'visao_geral' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="inicio" %}<span>Visão geral</span></a>
-  <a class="nav-item {% if n == 'insight_sales' or n == 'minha_performance' %}ativo{% endif %}" href="{% url 'prospeccao:insight_sales' %}" title="Insight Sales" {% if n == 'insight_sales' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="lista" %}<span>Insight Sales</span></a>
+  <a class="nav-item {% if n == 'inside_sales' or n == 'minha_performance' %}ativo{% endif %}" href="{% url 'prospeccao:inside_sales' %}" title="Inside Sales" {% if n == 'inside_sales' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="lista" %}<span>Inside Sales</span></a>
   <a class="nav-item {% if n == 'captacao' %}ativo{% endif %}" href="{% url 'prospeccao:captacao' %}" title="Painel de captação" {% if n == 'captacao' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="frentes" %}<span>Painel de captação</span></a>  <a class="nav-item {% if n == 'pesquisa_nova' or n == 'pesquisa_editar' %}ativo{% endif %}" href="{% if user.is_staff %}{% url 'prospeccao:pesquisa_nova' %}{% else %}{% url 'prospeccao:pesquisas' %}{% endif %}" title="Buscar novos leads" {% if n == 'pesquisa_nova' or n == 'pesquisa_editar' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="buscar" %}<span>Buscar novos leads</span></a>
   <a class="nav-item {% if n == 'oportunidades' or n == 'empresa' or n == 'oportunidade' %}ativo{% endif %}" href="{% url 'prospeccao:oportunidades' %}?etapa=sem_abordagem" title="Meus leads" {% if n == 'oportunidades' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="alvo" %}<span>Meus leads</span></a>
   <a class="nav-item {% if n == 'retornos' %}ativo{% endif %}" href="{% url 'carteira:retornos' %}" title="Retornos" {% if n == 'retornos' %}aria-current="page"{% endif %}>{% include "carteira/_icone.html" with nome="retorno" %}<span>Retornos</span></a>
@@ -76,6 +83,9 @@
 </nav>
 {% endwith %}
 <main class="conteudo" id="conteudo" tabindex="-1">
+  {% block voltar %}<div class="voltar-barra">
+    <a class="btn ghost btn-voltar" id="btn-voltar" href="{% block voltar_url %}{% if eh_adm %}{% url 'prospeccao:visao_geral' %}{% else %}{% url 'prospeccao:inside_sales' %}{% endif %}{% endblock %}">{% include "carteira/_icone.html" with nome="voltar" %}<span>Voltar</span></a>
+  </div>{% endblock %}
 {% else %}
 <main id="conteudo">
 {% endif %}
@@ -84,6 +94,28 @@
 </main>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 {% include "carteira/_scripts.html" %}
+<script>
+(function () {
+  /* Voltar: volta à tela anterior do próprio sistema; sem histórico (link direto, app recém-aberto) vai ao início. */
+  var b = document.getElementById("btn-voltar");
+  if (b) {
+    var ref = "";
+    try { ref = document.referrer ? new URL(document.referrer).origin : ""; } catch (e) {}
+    var temHistorico = ref === location.origin && history.length > 1;
+    var destino = new URL(b.href, location.href);
+    if (!temHistorico && destino.pathname === location.pathname) {
+      b.parentNode.hidden = true;  /* já está no início e não há para onde voltar */
+    }
+    b.addEventListener("click", function (e) {
+      if (temHistorico) { e.preventDefault(); history.back(); }
+    });
+  }
+  /* PWA */
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+    window.addEventListener("load", function () { navigator.serviceWorker.register("{% url 'pwa_sw' %}", { scope: "/" }).catch(function () {}); });
+  }
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -351,7 +351,7 @@ MOTIVOS_DESCLASSIFICAR = [
 
 @transaction.atomic
 def desclassificar(op, usuario, motivo, justificativa):
-    """Lead ruim: sai da lista do Insight Sales e fica DESCARTADA com o motivo e a justificativa de quem atendeu.
+    """Lead ruim: sai da lista do Inside Sales e fica DESCARTADA com o motivo e a justificativa de quem atendeu.
     Só quem pode atender o lead (dono ou ADMIN) desclassifica; um ADMIN pode reabrir depois."""
     from prospeccao.services import atendimento as at
     justificativa = (justificativa or "").strip()

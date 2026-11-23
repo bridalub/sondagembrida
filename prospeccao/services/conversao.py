@@ -1,8 +1,8 @@
-"""Lead que virou cliente (venda contada na captação) sai da base de trabalho do Insight Sales.
+"""Lead que virou cliente (venda contada na captação) sai da base de trabalho do Inside Sales.
 
 A oportunidade passa a JA_CLIENTE ("passou a constar como cliente"): some de "A procurar" e "Procurados", mas as
 vendas e os pontos continuam contando no painel e na disputa (eles leem as empresas da prospecção, qualquer status).
-Roda depois de cada sincronização com o Salesforce e ao abrir a tela do Insight Sales.
+Roda depois de cada sincronização com o Salesforce e ao abrir a tela do Inside Sales.
 """
 from prospeccao.models import Oportunidade
 

@@ -1,4 +1,4 @@
-"""Insight Sales: quem falta procurar e quem já foi procurado (e por quem).
+"""Inside Sales: quem falta procurar e quem já foi procurado (e por quem).
 
 - "A procurar": empresas encontradas pela prospecção (com ou sem CNPJ), em aberto, sem nenhum contato registrado.
 - "Procurados": empresas com pelo menos um contato registrado (Abordagem), com quem atendeu, quando, canal e resultado.
@@ -26,7 +26,7 @@ from prospeccao.papeis import eh_adm
 POR_PAGINA = 50
 
 
-def base_insight():
+def base_inside():
     """Leads da prospecção (externos) que interessam à equipe. Sem conhecidas, descartadas, fora da fila e fora do
     escopo comercial (escopo FORA: atividade sem relação com o que a Brida vende) — o mesmo recorte da Visão geral."""
     return (Oportunidade.objects.filter(tipo=Oportunidade.Tipo.NOVA_EXTERNA)
@@ -52,14 +52,14 @@ def _anotar(qs):
 
 def _contagem_abas():
     """Mesmos números das abas A procurar / Procurados (sem filtros)."""
-    qs = base_insight().annotate(procurado=Exists(Abordagem.objects.filter(empresa=OuterRef("empresa"))))
+    qs = base_inside().annotate(procurado=Exists(Abordagem.objects.filter(empresa=OuterRef("empresa"))))
     return {"procurar": qs.filter(procurado=False, status__in=[Oportunidade.Status.NOVA,
                                                                 Oportunidade.Status.LIBERADA]).count(),
             "procurados": qs.filter(procurado=True).count()}
 
 
 @login_required
-def insight_sales(request):
+def inside_sales(request):
     aba = "procurados" if request.GET.get("aba") == "procurados" else "procurar"
     q = (request.GET.get("q") or "").strip()
     pesquisa = (request.GET.get("pesquisa") or "").strip()
@@ -70,7 +70,7 @@ def insight_sales(request):
     from prospeccao.services import atendimento as at
     from prospeccao.services.conversao import marcar_convertidos
     marcar_convertidos()  # quem já comprou sai da base antes de montar as listas
-    qs = _anotar(base_insight().select_related("empresa", "em_atendimento_por", "responsavel"))
+    qs = _anotar(base_inside().select_related("empresa", "em_atendimento_por", "responsavel"))
     if q:
         dig = "".join(ch for ch in q if ch.isdigit())
         filtro = Q(empresa__nome__icontains=q) | Q(empresa__nome_fantasia__icontains=q) | \
@@ -120,7 +120,7 @@ def insight_sales(request):
     filtros = {k: v for k, v in params.items() if k != "aba" and v}
     sem_aba = params.copy()
     sem_aba.pop("aba", None)
-    return render(request, "prospeccao/insight_sales.html", {
+    return render(request, "prospeccao/inside_sales.html", {
         "aba": aba, "itens": itens, "pagina": pagina, "contagem": contagem,
         "f": {"q": q, "pesquisa": pesquisa, "cidade": cidade, "cnpj": cnpj, "atendente": atendente},
         "tem_filtro": bool(filtros),
@@ -147,14 +147,14 @@ def atendimento(request, pk):
             messages.success(request, f"{op.empresa.nome}: lead liberado para outro atendente.")
         except at.AtendimentoOcupado as e:
             messages.warning(request, str(e))
-        return redirect(proximo or "prospeccao:insight_sales")
+        return redirect(proximo or "prospeccao:inside_sales")
     try:
         at.assumir(op, request.user)
     except at.AtendimentoOcupado as e:
         messages.warning(request, str(e))
-        return redirect(proximo or "prospeccao:insight_sales")
+        return redirect(proximo or "prospeccao:inside_sales")
     destino = reverse("carteira:registrar_abordagem", args=[op.empresa_id])
-    return redirect(f"{destino}?proximo={quote(proximo or reverse('prospeccao:insight_sales'))}")
+    return redirect(f"{destino}?proximo={quote(proximo or reverse('prospeccao:inside_sales'))}")
 
 
 @login_required
@@ -170,7 +170,7 @@ def desclassificar(request, pk):
         return redirect(reverse("carteira:registrar_abordagem", args=[op.empresa_id]))
     messages.success(request, f"{op.empresa.nome} desclassificado: saiu da lista de leads. "
                               "A justificativa fica registrada; um ADMIN pode reabrir se necessário.")
-    return redirect("prospeccao:insight_sales")
+    return redirect("prospeccao:inside_sales")
 
 
 @login_required
@@ -215,7 +215,7 @@ def _performance(request, inicio, fim, mes, simulacao=False):
         d["alt_t"] = round(d["tentativa"] * 100 / maior)
     retornos = list(Abordagem.objects.filter(usuario=pessoa, data_retorno__isnull=False, retorno_concluido=False)
                     .select_related("empresa").order_by("data_retorno")[:30])
-    atendendo = list(base_insight().filter(em_atendimento_por=pessoa, em_atendimento_desde__gte=at.limite_validade())
+    atendendo = list(base_inside().filter(em_atendimento_por=pessoa, em_atendimento_desde__gte=at.limite_validade())
                      .select_related("empresa"))
     anterior = (inicio - timedelta(days=1)).strftime("%Y-%m")
     seguinte = (fim + timedelta(days=1)).strftime("%Y-%m")

@@ -1,4 +1,4 @@
-"""Insight Sales: registrar contato move a empresa de "A procurar" para "Procurados", com quem atendeu."""
+"""Inside Sales: registrar contato move a empresa de "A procurar" para "Procurados", com quem atendeu."""
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -7,7 +7,7 @@ from carteira.models import Abordagem, CanalAbordagem, Empresa, ResultadoAbordag
 from prospeccao.models import Oportunidade
 
 
-class InsightSalesTests(TestCase):
+class InsideSalesTests(TestCase):
     def setUp(self):
         U = get_user_model()
         self.gestor = U.objects.create_user("ana", password="x", first_name="Ana", is_staff=True)
@@ -26,7 +26,7 @@ class InsightSalesTests(TestCase):
         Oportunidade.objects.create(empresa=conhecida, tipo=Oportunidade.Tipo.CADASTRO_SEM_COMPRA)
 
     def _get(self, **params):
-        return self.client.get(reverse("prospeccao:insight_sales"), params)
+        return self.client.get(reverse("prospeccao:inside_sales"), params)
 
     def test_a_procurar_traz_com_e_sem_cnpj_e_exclui_descartada_e_conhecida(self):
         r = self._get()

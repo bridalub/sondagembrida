@@ -12,7 +12,7 @@ class ProspeccaoConfig(AppConfig):
 
         def grupo_adm(sender, instance, action, pk_set, **kwargs):
             """Colocar alguém no grupo ADM dá acesso total (inclusive a /admin/ para cadastrar usuários);
-            tirar do grupo volta a Insight Sales."""
+            tirar do grupo volta a Inside Sales."""
             if action not in ("post_add", "post_remove", "post_clear") or not hasattr(instance, "is_staff"):
                 return
             from prospeccao.papeis import GRUPO_ADM

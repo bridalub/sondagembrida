@@ -1,4 +1,4 @@
-"""Gestão de usuários do sistema (só ADMIN). Dois perfis: ADMIN e Insight Sales.
+"""Gestão de usuários do sistema (só ADMIN). Dois perfis: ADMIN e Inside Sales.
 
 Não usa o /admin/ do Django. Usuário não é apagado (os contatos registrados ficam ligados a ele): é desativado.
 Proteções: ninguém tira o próprio perfil ADMIN nem se desativa, e sempre sobra pelo menos um ADMIN ativo.
@@ -101,7 +101,7 @@ def usuarios(request):
     for u in qs:
         u.perfil = papeis.papel(u) if u.is_active else ("ADM" if u.is_superuser or u.is_staff
                                                          or any(g.name == papeis.GRUPO_ADM for g in u.groups.all())
-                                                         else "INSIGHT")
+                                                         else "INSIDE")
         u.perfil_rotulo = papeis.ROTULOS[u.perfil]
         if perfil and u.perfil != perfil:
             continue
@@ -129,7 +129,7 @@ def _proteger(request, alvo, perfil, ativo):
 @login_required
 def usuario_novo(request):
     _so_admin(request)
-    form = NovoUsuarioForm(request.POST or None, initial={"perfil": "INSIGHT", "ativo": True})
+    form = NovoUsuarioForm(request.POST or None, initial={"perfil": "INSIDE", "ativo": True})
     if request.method == "POST" and form.is_valid():
         d = form.cleaned_data
         u = U.objects.create_user(d["username"], email=d["email"], password=d["senha1"], first_name=d["nome"],
@@ -145,7 +145,7 @@ def usuario_editar(request, pk):
     _so_admin(request)
     alvo = get_object_or_404(U, pk=pk)
     inicial = {"nome": alvo.get_full_name() or alvo.first_name, "username": alvo.username, "email": alvo.email,
-               "perfil": "ADM" if papeis.eh_adm(alvo) else "INSIGHT", "ativo": alvo.is_active}
+               "perfil": "ADM" if papeis.eh_adm(alvo) else "INSIDE", "ativo": alvo.is_active}
     form = UsuarioForm(request.POST or None, initial=inicial, usuario=alvo)
     senha_form = NovaSenhaForm(usuario=alvo)
     if request.method == "POST" and form.is_valid():
@@ -177,7 +177,7 @@ def usuario_senha(request, pk):
         messages.success(request, f"Senha de {alvo.username} alterada. Informe a nova senha à pessoa.")
         return redirect("prospeccao:usuarios")
     inicial = {"nome": alvo.get_full_name() or alvo.first_name, "username": alvo.username, "email": alvo.email,
-               "perfil": "ADM" if papeis.eh_adm(alvo) else "INSIGHT", "ativo": alvo.is_active}
+               "perfil": "ADM" if papeis.eh_adm(alvo) else "INSIDE", "ativo": alvo.is_active}
     return render(request, "prospeccao/usuario_form.html", {
         "form": UsuarioForm(initial=inicial, usuario=alvo), "alvo": alvo, "senha_form": senha_form,
         "foco_senha": True})
@@ -189,7 +189,7 @@ def usuario_ativo(request, pk):
     _so_admin(request)
     alvo = get_object_or_404(U, pk=pk)
     ativo = request.POST.get("ativo") == "1"
-    erro = _proteger(request, alvo, "ADM" if papeis.eh_adm(alvo) else "INSIGHT", ativo)
+    erro = _proteger(request, alvo, "ADM" if papeis.eh_adm(alvo) else "INSIDE", ativo)
     if erro:
         messages.error(request, erro)
     else:

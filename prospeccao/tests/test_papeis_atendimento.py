@@ -1,4 +1,4 @@
-"""Papéis (ADM × Insight Sales) e trava de atendimento do lead."""
+"""Papéis (ADM × Inside Sales) e trava de atendimento do lead."""
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -19,7 +19,7 @@ class PapeisTests(TestCase):
         self.adm = U.objects.create_user("chefe", password="x")
         self.adm.groups.add(Group.objects.get_or_create(name="ADM")[0])
         self.ana = U.objects.create_user("ana", first_name="Ana", password="x")
-        self.ana.groups.add(Group.objects.get_or_create(name="Insight Sales")[0])
+        self.ana.groups.add(Group.objects.get_or_create(name="Inside Sales")[0])
         self.bia = U.objects.create_user("bia", first_name="Bia", password="x")
         e = Empresa.objects.create(nome="Lead Teste Ltda", cidade="Santo André", uf="SP",
                                    origem=Empresa.Origem.DESCOBERTA)
@@ -31,24 +31,24 @@ class PapeisTests(TestCase):
         self.adm.refresh_from_db()
         self.assertTrue(self.adm.is_staff and self.adm.is_superuser and eh_adm(self.adm))
         self.assertFalse(eh_adm(self.ana))
-        self.assertFalse(eh_adm(self.bia))  # sem grupo = Insight Sales (menor acesso)
+        self.assertFalse(eh_adm(self.bia))  # sem grupo = Inside Sales (menor acesso)
 
-    def test_insight_sales_so_ve_as_telas_dele(self):
+    def test_inside_sales_so_ve_as_telas_dele(self):
         self.client.force_login(self.ana)
-        for nome in ("prospeccao:insight_sales", "prospeccao:minha_performance", "carteira:retornos",
+        for nome in ("prospeccao:inside_sales", "prospeccao:minha_performance", "carteira:retornos",
                      "carteira:empresas"):
             self.assertEqual(self.client.get(reverse(nome)).status_code, 200, nome)
         for nome in ("prospeccao:pesquisas", "prospeccao:captacao", "prospeccao:parametros", "carteira:listas",
                      "prospeccao:oportunidades", "prospeccao:visao_geral", "prospeccao:usuarios",
                      "carteira:novas_abordagens"):
             r = self.client.get(reverse(nome))
-            self.assertRedirects(r, reverse("prospeccao:insight_sales"), msg_prefix=nome)
-        r = self.client.get(reverse("prospeccao:insight_sales"))
+            self.assertRedirects(r, reverse("prospeccao:inside_sales"), msg_prefix=nome)
+        r = self.client.get(reverse("prospeccao:inside_sales"))
         self.assertNotContains(r, reverse("prospeccao:pesquisas"))  # menu sem as telas de gestão
 
     def test_adm_ve_tudo(self):
         self.client.force_login(self.adm)
-        for nome in ("prospeccao:pesquisas", "prospeccao:captacao", "prospeccao:insight_sales",
+        for nome in ("prospeccao:pesquisas", "prospeccao:captacao", "prospeccao:inside_sales",
                      "prospeccao:minha_performance"):
             self.assertEqual(self.client.get(reverse(nome)).status_code, 200, nome)
 
@@ -57,14 +57,14 @@ class PapeisTests(TestCase):
         self.client.force_login(self.ana)
         r = self.client.post(url, {"acao": "assumir"})
         self.assertRedirects(r, reverse("carteira:registrar_abordagem", args=[self.e.pk]) + "?proximo="
-                             + reverse("prospeccao:insight_sales"), fetch_redirect_response=False)
+                             + reverse("prospeccao:inside_sales"), fetch_redirect_response=False)
         self.op.refresh_from_db()
         self.assertEqual(self.op.em_atendimento_por, self.ana)
-        lista = self.client.get(reverse("prospeccao:insight_sales"))
+        lista = self.client.get(reverse("prospeccao:inside_sales"))
         self.assertContains(lista, "Continuar atendimento")
 
         self.client.force_login(self.bia)
-        lista = self.client.get(reverse("prospeccao:insight_sales"))
+        lista = self.client.get(reverse("prospeccao:inside_sales"))
         self.assertContains(lista, "Em atendimento: Ana")
         self.client.post(url, {"acao": "assumir"})
         self.op.refresh_from_db()

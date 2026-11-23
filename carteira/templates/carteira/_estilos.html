@@ -304,6 +304,12 @@ button:disabled, .btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed;
 .acoes input, .acoes select { width: auto; min-width: 0; }
 svg.ic { width: 18px; height: 18px; flex: 0 0 auto; }
 
+/* ---------------------------------------------------------------- voltar (todas as telas, menos o login) */
+.voltar-barra { margin: -4px 0 12px; }
+.voltar-barra[hidden] { display: none; }
+.btn-voltar { min-height: 40px; padding: 6px 12px 6px 8px; margin-left: -8px; }
+@media print { .voltar-barra { display: none !important; } }
+
 /* ---------------------------------------------------------------- mensagens */
 .msgs { padding: 0; margin: 0 0 16px; }
 .msgs li { list-style: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; background: var(--ok-bg); color: var(--ok); border: 1px solid #a9d8bd; font-weight: 600; }
@@ -580,7 +586,7 @@ details.pq-mais > .corpo { padding: 0 18px 16px; }
 .pq-linha .progresso { display: flex; flex-direction: column; gap: 2px; }
 .pq-linha .progresso .pq-barra { margin-top: 2px; }
 @media (max-width: 700px) { .pq-linha { grid-template-columns: 1fr; gap: 6px; } }
-/* Insight Sales: abas-cartão lado a lado (quantas houver, mesma largura) */
+/* Inside Sales: abas-cartão lado a lado (quantas houver, mesma largura) */
 .is-abas { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 14px; margin-bottom: 16px; }
 @media (max-width: 760px) { .is-abas { grid-auto-flow: row; } }
 .is-abas a { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto;

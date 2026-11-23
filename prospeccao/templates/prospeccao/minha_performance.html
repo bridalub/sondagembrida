@@ -138,10 +138,10 @@
 </style>
 
 {% if eh_adm %}
-<header class="pq-cab" style="margin-bottom:8px"><div><h1>Insight Sales</h1></div></header>
-<nav class="is-abas" aria-label="Insight Sales">
-  <a href="{% url 'prospeccao:insight_sales' %}?aba=procurar"><span>A procurar</span><b>{{ contagem.procurar }}</b><small>Leads ainda sem contato registrado</small></a>
-  <a href="{% url 'prospeccao:insight_sales' %}?aba=procurados"><span>Procurados</span><b>{{ contagem.procurados }}</b><small>Com contato registrado e quem atendeu</small></a>
+<header class="pq-cab" style="margin-bottom:8px"><div><h1>Inside Sales</h1></div></header>
+<nav class="is-abas" aria-label="Inside Sales">
+  <a href="{% url 'prospeccao:inside_sales' %}?aba=procurar"><span>A procurar</span><b>{{ contagem.procurar }}</b><small>Leads ainda sem contato registrado</small></a>
+  <a href="{% url 'prospeccao:inside_sales' %}?aba=procurados"><span>Procurados</span><b>{{ contagem.procurados }}</b><small>Com contato registrado e quem atendeu</small></a>
   <a href="{% url 'prospeccao:minha_performance' %}" aria-current="page"><span>Performance</span><i class="is-ic" aria-hidden="true">{% include "carteira/_icone.html" with nome="pessoa" %}</i><small>Números do mês de cada pessoa</small></a>
 </nav>
 {% endif %}
@@ -187,7 +187,7 @@
     {% if simulacao %}<input type="hidden" name="simulacao" value="1">
     <a class="btn sec" href="?mes={{ mes }}">Sair da simulação</a>
     {% else %}<a class="btn sec" href="?mes={{ mes }}&amp;simulacao=1" title="Equipe e contatos fictícios, só para ver como a tela funciona. Nada é gravado.">Ver análise de teste</a>{% endif %}
-    {% if not eh_adm %}<a class="btn sec" href="{% url 'prospeccao:insight_sales' %}">Voltar aos leads</a>{% endif %}
+    {% if not eh_adm %}<a class="btn sec" href="{% url 'prospeccao:inside_sales' %}">Voltar aos leads</a>{% endif %}
   </form>
 </header>
 

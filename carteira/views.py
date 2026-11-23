@@ -171,7 +171,7 @@ def registrar_abordagem(request, pk):
         abordagem = form.save(commit=False)
         abordagem.empresa = empresa
         abordagem.usuario = request.user
-        # disputa do mês: só leads da prospecção e quem é do Insight Sales
+        # disputa do mês: só leads da prospecção e quem é do Inside Sales
         from prospeccao.models import Oportunidade
         jogo = (op_lead is not None and op_lead.tipo == Oportunidade.Tipo.NOVA_EXTERNA and not empresa.salesforce_id
                 and not papeis.eh_adm(request.user))
@@ -251,7 +251,7 @@ def anexo_orcamento(request, pk):
         raise Http404
     if a.usuario_id != request.user.pk and not eh_adm(request.user):
         messages.warning(request, "Só quem registrou o orçamento ou um ADMIN pode abrir o arquivo.")
-        return redirect("prospeccao:insight_sales")
+        return redirect("prospeccao:inside_sales")
     try:
         arq = a.anexo_orcamento.open("rb")
     except FileNotFoundError:
@@ -307,7 +307,7 @@ def retornos(request):
     hoje = timezone.localdate()
     base = ab.retornos_pendentes().select_related("empresa__oportunidade").prefetch_related("empresa__canais")
     if not eh_adm(request.user):
-        base = base.filter(usuario=request.user)  # Insight Sales acompanha só os retornos que agendou
+        base = base.filter(usuario=request.user)  # Inside Sales acompanha só os retornos que agendou
     qs = base
     if request.GET.get("meus"):
         qs = qs.filter(usuario=request.user)
@@ -340,7 +340,7 @@ def concluir_retorno(request, pk):
     abordagem = get_object_or_404(Abordagem, pk=pk)
     if abordagem.usuario_id != request.user.pk and not eh_adm(request.user):
         messages.warning(request, "Só quem agendou o retorno (ou um ADM) pode concluí-lo.")
-        return redirect(_proximo_seguro(request, reverse("prospeccao:insight_sales")))
+        return redirect(_proximo_seguro(request, reverse("prospeccao:inside_sales")))
     ab.concluir_retorno(abordagem)
     messages.success(request, f"Retorno de {abordagem.empresa.nome} concluído (sem novo contato registrado).")
     return redirect(_proximo_seguro(request, reverse("carteira:retornos")))

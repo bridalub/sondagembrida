@@ -53,7 +53,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "prospeccao.papeis.PapelMiddleware",  # Insight Sales só vê as telas dele
+    "prospeccao.papeis.PapelMiddleware",  # Inside Sales só vê as telas dele
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 # Arquivos estáticos servidos pelo próprio app (container da VPS): o proxy (Caddy) só repassa o domínio.

@@ -5,7 +5,7 @@
 <style>
 .us-perfil { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; }
 .us-perfil.ADM { background: var(--azul-900); color: #fff; }
-.us-perfil.INSIGHT { background: var(--azul-50); color: var(--azul-900); border: 1px solid var(--bd); }
+.us-perfil.INSIDE { background: var(--azul-50); color: var(--azul-900); border: 1px solid var(--bd); }
 .us-filtros { display: grid; gap: 10px 12px; grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(160px, 1fr)) auto; align-items: end; }
 @media (max-width: 760px) { .us-filtros { grid-template-columns: 1fr; } }
 .us-inativo td { opacity: .6; }
@@ -25,7 +25,7 @@
 
 <div class="us-perfis">
   <div class="card"><h2><span class="us-perfil ADM">ADMIN</span></h2><p>Acesso total: buscas, pesquisas, configurações, carteira, painel de captação, performance de todos e usuários.</p></div>
-  <div class="card"><h2><span class="us-perfil INSIGHT">Insight Sales</span></h2><p>Menu Insight Sales (leads a procurar e procurados), Minha performance e Acompanhar retornos (só os dele). Atende um lead por vez.</p></div>
+  <div class="card"><h2><span class="us-perfil INSIDE">Inside Sales</span></h2><p>Menu Inside Sales (leads a procurar e procurados), Minha performance e Acompanhar retornos (só os dele). Atende um lead por vez.</p></div>
 </div>
 
 <form method="get" class="card" role="search" aria-label="Filtrar usuários">
@@ -35,7 +35,7 @@
     <div><label for="f-perfil">Perfil</label>
       <select id="f-perfil" name="perfil"><option value="">Todos</option>
         <option value="ADM" {% if f.perfil == "ADM" %}selected{% endif %}>ADMIN</option>
-        <option value="INSIGHT" {% if f.perfil == "INSIGHT" %}selected{% endif %}>Insight Sales</option></select></div>
+        <option value="INSIDE" {% if f.perfil == "INSIDE" %}selected{% endif %}>Inside Sales</option></select></div>
     <div><label for="f-sit">Situação</label>
       <select id="f-sit" name="situacao">
         <option value="ativos" {% if f.situacao == "ativos" %}selected{% endif %}>Ativos</option>

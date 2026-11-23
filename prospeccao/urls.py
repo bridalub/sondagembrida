@@ -1,6 +1,6 @@
 from django.urls import path
 
-from prospeccao import views_insight
+from prospeccao import views_inside
 from prospeccao import views_usuarios as vu
 from prospeccao import views
 from prospeccao import views_planejada as vp
@@ -9,12 +9,12 @@ app_name = "prospeccao"
 
 urlpatterns = [
     path("", views.visao_geral, name="visao_geral"),
-    path("insight-sales/", views_insight.insight_sales, name="insight_sales"),
-    path("insight-sales/painel/", views_insight.captacao, name="captacao"),
-    path("insight-sales/painel/<slug:tipo>/", views_insight.captacao_detalhe, name="captacao_detalhe"),
-    path("insight-sales/performance/", views_insight.minha_performance, name="minha_performance"),
-    path("insight-sales/leads/<int:pk>/atendimento/", views_insight.atendimento, name="atendimento"),
-    path("insight-sales/leads/<int:pk>/desclassificar/", views_insight.desclassificar, name="desclassificar"),
+    path("inside-sales/", views_inside.inside_sales, name="inside_sales"),
+    path("inside-sales/painel/", views_inside.captacao, name="captacao"),
+    path("inside-sales/painel/<slug:tipo>/", views_inside.captacao_detalhe, name="captacao_detalhe"),
+    path("inside-sales/performance/", views_inside.minha_performance, name="minha_performance"),
+    path("inside-sales/leads/<int:pk>/atendimento/", views_inside.atendimento, name="atendimento"),
+    path("inside-sales/leads/<int:pk>/desclassificar/", views_inside.desclassificar, name="desclassificar"),
     path("prospeccao/pesquisas/", views.pesquisas, name="pesquisas"),
     path("prospeccao/pesquisas/nova/", views.pesquisa_form, name="pesquisa_nova"),
     path("prospeccao/pesquisas/<int:pk>/", views.pesquisa_detalhe, name="pesquisa_detalhe"),

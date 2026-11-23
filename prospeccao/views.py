@@ -639,7 +639,7 @@ def empresa(request, pk):
         "cruzamento": cz.cruzamento_atual(),
         "voltar_url": (reverse("prospeccao:oportunidades") + (f"?{filtro}" if filtro else "")
                        if __import__("prospeccao.papeis", fromlist=["eh_adm"]).eh_adm(request.user)
-                       else reverse("prospeccao:insight_sales")),
+                       else reverse("prospeccao:inside_sales")),
         "pode_abordar": pode_abordar,
         "etapa": apr.etapa_oportunidade(op) if op else None,
         "dims": dims,
