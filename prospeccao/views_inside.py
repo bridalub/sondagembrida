@@ -50,6 +50,22 @@ def _anotar(qs):
     )
 
 
+SEM_COORDENADOR = "__sem__"
+
+
+def _coordenador_por_lead():
+    """{oportunidade: coordenador indicado pela região do Salesforce ('' sem indicação)}, para o filtro."""
+    from types import SimpleNamespace
+    from prospeccao.services import regiao
+    m = regiao.mapa()
+    saida = {}
+    for pk, cidade, uf, cep, escopo in base_inside().values_list("pk", "empresa__cidade", "empresa__uf",
+                                                                 "empresa__cep", "escopo"):
+        r = regiao.da_empresa(SimpleNamespace(cidade=cidade or "", uf=uf or "", cep=cep or ""), escopo, m)
+        saida[pk] = r["coordenador"] if r else ""
+    return saida
+
+
 def _contagem_abas():
     """Mesmos números das abas A procurar / Procurados (sem filtros)."""
     qs = base_inside().annotate(procurado=Exists(Abordagem.objects.filter(empresa=OuterRef("empresa"))))
@@ -66,6 +82,7 @@ def inside_sales(request):
     cidade = (request.GET.get("cidade") or "").strip()
     cnpj = request.GET.get("cnpj") or ""
     atendente = (request.GET.get("atendente") or "").strip()
+    coordenador = (request.GET.get("coordenador") or "").strip()
 
     from prospeccao.services import atendimento as at
     from prospeccao.services.conversao import marcar_convertidos
@@ -78,8 +95,12 @@ def inside_sales(request):
         if len(dig) >= 4:
             filtro |= Q(empresa__cnpj__contains=dig)
         qs = qs.filter(filtro)
-    if pesquisa.isdigit():
+    if pesquisa.isdigit():  # filtro antigo: links e favoritos continuam valendo
         qs = qs.filter(pesquisas__pk=int(pesquisa))
+    coord_por_lead = _coordenador_por_lead()
+    if coordenador:
+        ids = [pk for pk, c in coord_por_lead.items() if (not c if coordenador == SEM_COORDENADOR else c == coordenador)]
+        qs = qs.filter(pk__in=ids)
     if cidade:
         qs = qs.filter(empresa__cidade__icontains=cidade)
     if cnpj == "com":
@@ -125,11 +146,13 @@ def inside_sales(request):
     sem_aba.pop("aba", None)
     return render(request, "prospeccao/inside_sales.html", {
         "aba": aba, "itens": itens, "pagina": pagina, "contagem": contagem,
-        "f": {"q": q, "pesquisa": pesquisa, "cidade": cidade, "cnpj": cnpj, "atendente": atendente},
+        "f": {"q": q, "pesquisa": pesquisa, "cidade": cidade, "cnpj": cnpj, "atendente": atendente,
+              "coordenador": coordenador},
+        "coordenadores": sorted({c for c in coord_por_lead.values() if c}),
+        "sem_coordenador": SEM_COORDENADOR,
         "tem_filtro": bool(filtros),
         "querystring": params.urlencode(),
         "querystring_sem_aba": sem_aba.urlencode(),
-        "pesquisas": Pesquisa.objects.order_by("nome").only("pk", "nome"),
         "atendentes": (get_user_model().objects.filter(abordagens__isnull=False).distinct()
                        .order_by("username").values_list("username", flat=True)),
     })

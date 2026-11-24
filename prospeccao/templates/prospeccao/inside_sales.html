@@ -27,9 +27,11 @@
   <div class="pq-filtros">
     <div><label for="f-q">Empresa ou CNPJ</label>
       <div class="campo-busca">{% include "carteira/_icone.html" with nome="buscar" %}<input id="f-q" type="search" name="q" value="{{ f.q }}" placeholder="Nome, razão social ou CNPJ" autocomplete="off"></div></div>
-    <div><label for="f-pesquisa">Pesquisa</label>
-      <select id="f-pesquisa" name="pesquisa"><option value="">Todas</option>
-        {% for p in pesquisas %}<option value="{{ p.pk }}" {% if f.pesquisa == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nome }}</option>{% endfor %}</select></div>
+    <div><label for="f-coordenador">Coordenador</label>
+      <select id="f-coordenador" name="coordenador"><option value="">Todos</option>
+        {% for c in coordenadores %}<option value="{{ c }}" {% if f.coordenador == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+        <option value="{{ sem_coordenador }}" {% if f.coordenador == sem_coordenador %}selected{% endif %}>(sem indicação)</option></select>
+      {% if f.pesquisa %}<input type="hidden" name="pesquisa" value="{{ f.pesquisa }}">{% endif %}</div>
     <div><label for="f-cidade">Município</label><input id="f-cidade" name="cidade" value="{{ f.cidade }}" autocomplete="off"></div>
     <div><label for="f-cnpj">CNPJ</label>
       <select id="f-cnpj" name="cnpj"><option value="">Com e sem CNPJ</option>

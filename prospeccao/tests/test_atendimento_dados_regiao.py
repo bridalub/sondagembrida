@@ -132,6 +132,23 @@ class RegiaoTests(TestCase):
         self.assertNotIn("TATIANE", html)
 
 
+    def test_filtro_por_coordenador_no_inside_sales(self):
+        adm = get_user_model().objects.create_user("chefe", password="x", is_staff=True, is_superuser=True)
+        for nome, cidade in (("Lead Mauá", "Mauá"), ("Lead GRU", "Guarulhos"), ("Lead Manaus", "Manaus")):
+            e = Empresa.objects.create(nome=nome, cidade=cidade, uf="SP", origem=Empresa.Origem.DESCOBERTA)
+            Oportunidade.objects.create(empresa=e, tipo=Oportunidade.Tipo.NOVA_EXTERNA, status=Oportunidade.Status.NOVA)
+        self.client.force_login(adm)
+        url = reverse("prospeccao:inside_sales")
+        html = self.client.get(url).content.decode()
+        self.assertIn('<select id="f-coordenador" name="coordenador">', html)
+        self.assertIn('<option value="WASHINGTON NETO"', html)
+        self.assertNotIn('id="f-pesquisa"', html)
+        nomes = lambda r: {o.empresa.nome for o in r.context["itens"]}
+        self.assertEqual(nomes(self.client.get(url, {"coordenador": "WASHINGTON NETO"})), {"Lead Mauá"})
+        self.assertEqual(nomes(self.client.get(url, {"coordenador": "ROSANGELA COSTA"})), {"Lead GRU"})
+        self.assertEqual(nomes(self.client.get(url, {"coordenador": "__sem__"})), {"Lead Manaus"})
+
+
 class ImportacaoVendedorTests(TestCase):
     def test_mapeia_tipo_e_coordenador_do_vendedor(self):
         from carteira.services.importacao import mapear_account
