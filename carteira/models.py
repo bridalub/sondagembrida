@@ -237,6 +237,10 @@ class Empresa(models.Model):
     )
     vendedor = models.CharField(max_length=200, blank=True, help_text="Account.Seller__r.Name")
     coordenador = models.CharField(max_length=200, blank=True, help_text="Account.CoordinatorFormula__c")
+    tipo_vendedor = models.CharField(max_length=60, blank=True, help_text="Account.Seller__r.Type__c (Varejo, Consumo / Industria)")
+    coordenador_vendedor = models.CharField(
+        max_length=200, blank=True,
+        help_text="Account.Seller__r.UserCoordinatorSync__r.Name – coordenador do vendedor (pode diferir do dono da região)")
     situacao_protheus = models.CharField(max_length=60, blank=True, help_text="Account.ProtheusCustomerSituation__c")
     distribuidor = models.CharField(max_length=200, blank=True, help_text="Account.Distributor__r.Name")
     data_cadastro_origem = models.DateTimeField(

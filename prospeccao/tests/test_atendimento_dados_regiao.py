@@ -74,36 +74,69 @@ class DadosETravaTests(TestCase):
 
 
 class RegiaoTests(TestCase):
-    def _conta(self, n, cidade, uf, coord, vend, cep="", reg="Grande SP"):
-        Empresa.objects.create(nome=f"Conta {n}", salesforce_id=f"001{n:012d}", cidade=cidade, uf=uf, cep=cep,
-                               coordenador=coord, vendedor=vend, regiao=reg)
+    """Casos reais: time interno da Tatiane e VENDEDOR INSIDE dominavam as cidades; coordenador e vendedor saíam
+    de contagens separadas (ex.: 'Tatiane + Daniela', par que não existe)."""
+
+    def _contas(self, n, cidade, vend, coord, tipo="Varejo", cep="", zona_owner=None):
+        for i in range(n):
+            self.k += 1
+            Empresa.objects.create(nome=f"Conta {self.k}", salesforce_id=f"001{self.k:012d}", cidade=cidade, uf="SP",
+                                   cep=cep, vendedor=vend, tipo_vendedor=tipo, coordenador_vendedor=coord,
+                                   coordenador=zona_owner or coord)
 
     def setUp(self):
         regiao._cache.update(em=0, mapa=None)
-        for i in range(3):
-            self._conta(i, "GUARULHOS", "SP", "CARLOS COORD", "VITOR VENDAS")
-        self._conta(3, "Guarulhos", "São Paulo", "CARLOS COORD", "OUTRO VENDEDOR")
-        self._conta(4, "Mauá", "SP", "MARIA COORD", "JOANA", cep="09370-000")
+        self.k = 0
+        T = "TATIANE FRITZ DE QUEROZ CORREIA"
+        # Mauá: muitas contas do interno e do VENDEDOR INSIDE; o vendedor de rua é a Daniela (coord. Washington)
+        self._contas(30, "Mauá", "VENDEDOR INSIDE", T)
+        self._contas(20, "MAUA", "DAYANE APARECIDA DA SILVA", T, tipo="Consumo / Industria")
+        self._contas(8, "Mauá", "DANIELA TOSSATO", "WASHINGTON NETO", zona_owner=T)  # dono da região diferente
+        self._contas(3, "Mauá", "JOÃO VITOR", "PAULO NETO", tipo="Consumo / Industria")
+        # Guarulhos: varejo (Rosangela) e indústria (Paulo Neto)
+        self._contas(6, "GUARULHOS", "VAGNER PINTO DOS SANTOS", "ROSANGELA COSTA", cep="07000-000")
+        self._contas(4, "GUARULHOS", "LUAN MENEGHESSO FARIA", "PAULO NETO", tipo="Consumo / Industria", cep="07100-000")
 
     def tearDown(self):
         regiao._cache.update(em=0, mapa=None)
 
-    def test_municipio_com_acentos_e_uf_por_extenso(self):
-        r = regiao.da_empresa(Empresa(nome="Lead", cidade="Guarulhos", uf="SP"))
-        self.assertEqual((r["coordenador"], r["vendedor"], r["contas"], r["coord_pct"], r["vend_pct"]),
-                         ("CARLOS COORD", "VITOR VENDAS", 4, 100, 75))
-        self.assertEqual(r["base"], "Guarulhos/SP")
+    def test_ignora_interno_e_genericos_e_mantem_o_par_do_vendedor(self):
+        r = regiao.da_empresa(Empresa(nome="Lead", cidade="Mauá", uf="SP"))
+        self.assertEqual((r["vendedor"], r["coordenador"]), ("DANIELA TOSSATO", "WASHINGTON NETO"))
+        self.assertEqual(r["contas"], 11)  # só vendedores de rua
 
-    def test_sem_conta_no_municipio_usa_faixa_de_cep(self):
-        r = regiao.da_empresa(Empresa(nome="Lead", cidade="Ribeirão Pires", uf="SP", cep="09370-123"))
-        self.assertEqual((r["coordenador"], r["base"]), ("MARIA COORD", "CEP 09370-xxx"))
+    def test_escopo_escolhe_o_tipo_do_vendedor(self):
+        lead = Empresa(nome="Lead", cidade="Guarulhos", uf="SP")
+        self.assertEqual(regiao.da_empresa(lead, "REVENDA_OFICINA")["vendedor"], "VAGNER PINTO DOS SANTOS")
+        r = regiao.da_empresa(lead, "INDUSTRIA")
+        self.assertEqual((r["vendedor"], r["coordenador"], r["tipo"]), ("LUAN MENEGHESSO FARIA", "PAULO NETO",
+                                                                         "Consumo / Indústria"))
+        self.assertEqual(regiao.da_empresa(Empresa(nome="L", cidade="Mauá", uf="SP"), "INDUSTRIA")["vendedor"],
+                         "JOÃO VITOR")
+
+    def test_faixa_de_cep_antes_do_municipio_quando_tem_contas(self):
+        r = regiao.da_empresa(Empresa(nome="Lead", cidade="Guarulhos", uf="SP", cep="07000-123"))
+        self.assertEqual((r["vendedor"], r["base"]), ("VAGNER PINTO DOS SANTOS", "CEP 07000-xxx"))
+        r = regiao.da_empresa(Empresa(nome="Lead", cidade="Guarulhos", uf="SP", cep="07100-123"))  # 4 < mínimo
+        self.assertEqual(r["base"], "Guarulhos/SP")
         self.assertIsNone(regiao.da_empresa(Empresa(nome="Lead", cidade="Manaus", uf="AM")))
 
     def test_lista_inside_sales_mostra_coordenador_e_vendedor(self):
         adm = get_user_model().objects.create_user("chefe", password="x", is_staff=True, is_superuser=True)
-        e = Empresa.objects.create(nome="Lead GRU", cidade="Guarulhos", uf="SP", origem=Empresa.Origem.DESCOBERTA)
+        e = Empresa.objects.create(nome="Lead Mauá", cidade="Mauá", uf="SP", origem=Empresa.Origem.DESCOBERTA)
         Oportunidade.objects.create(empresa=e, tipo=Oportunidade.Tipo.NOVA_EXTERNA, status=Oportunidade.Status.NOVA)
         self.client.force_login(adm)
         html = self.client.get(reverse("prospeccao:inside_sales")).content.decode()
-        self.assertIn("Coordenador: <b>CARLOS COORD</b>", html)
-        self.assertIn("Vendedor: <b>VITOR VENDAS</b>", html)
+        self.assertIn("Coordenador: <b>WASHINGTON NETO</b>", html)
+        self.assertIn("Vendedor: <b>DANIELA TOSSATO</b>", html)
+        self.assertNotIn("TATIANE", html)
+
+
+class ImportacaoVendedorTests(TestCase):
+    def test_mapeia_tipo_e_coordenador_do_vendedor(self):
+        from carteira.services.importacao import mapear_account
+        d = mapear_account({"Name": "X", "CoordinatorFormula__c": "TATIANE FRITZ DE QUEROZ CORREIA",
+                            "Seller__r": {"Name": "DANIELA TOSSATO", "Type__c": "Varejo",
+                                          "UserCoordinatorSync__r": {"Name": "WASHINGTON NETO"}}})
+        self.assertEqual((d["vendedor"], d["tipo_vendedor"], d["coordenador_vendedor"]),
+                         ("DANIELA TOSSATO", "Varejo", "WASHINGTON NETO"))

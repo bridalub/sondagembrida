@@ -34,7 +34,7 @@ CAMPOS_CADASTRAIS = [
     "nome", "razao_social", "nome_fantasia", "codigo_cliente", "id_customizado", "segmento",
     "segmento_normalizado", "subsegmento", "ramo", "imbp",
     "classificacao_consumo", "granel", "cidade", "uf", "cep", "cidade_entrega", "uf_entrega",
-    "regiao", "vendedor", "coordenador", "situacao_protheus", "distribuidor", "data_cadastro_origem",
+    "regiao", "vendedor", "coordenador", "tipo_vendedor", "coordenador_vendedor", "situacao_protheus", "distribuidor", "data_cadastro_origem",
     "telefone", "email", "email_classificacao", "ultima_compra_cadastro",
     # opcionais (só chegam se confirmados via describe)
     "cnae", "data_abertura",
@@ -96,6 +96,8 @@ def mapear_account(rec, extras=None, segmentos_codificados=None):
         "regiao": cv.texto(zona.get("Name")),
         "vendedor": cv.texto(seller.get("Name")),
         "coordenador": cv.texto(rec.get("CoordinatorFormula__c")),
+        "tipo_vendedor": cv.texto(seller.get("Type__c")),
+        "coordenador_vendedor": cv.texto((seller.get("UserCoordinatorSync__r") or {}).get("Name")),
         "situacao_protheus": cv.texto(rec.get("ProtheusCustomerSituation__c")),
         "distribuidor": cv.texto(dist.get("Name")),
         "data_cadastro_origem": cv.data_hora(rec.get("CreatedDate")),

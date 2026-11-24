@@ -28,7 +28,7 @@ CFOPS_VENDAS = (
 # Campos confirmados no diagnóstico real (docs/DIAGNOSTICO_DADOS_REAIS.md).
 CAMPOS_ACCOUNT = [
     "Id", "CNPJ__c", "CustomizedID__c", "IsGrainy__c", "Code__c", "Name", "FantasyName__c",
-    "CoordinatorFormula__c", "Seller__r.Name", "Zone__r.Name", "Metier__c", "IMBP__c",
+    "CoordinatorFormula__c", "Seller__r.Name", "Seller__r.Type__c", "Seller__r.UserCoordinatorSync__r.Name", "Zone__r.Name", "Metier__c", "IMBP__c",
     "Segment__c", "Subsegment__c", "BillingPostalCode", "BillingCity__c", "BillingState__c",
     "ShippingCity__c", "ShippingState__c", "ProtheusCustomerSituation__c",
     "ConsumptionClassification__c", "CreatedDate", "Distributor__r.Name",
