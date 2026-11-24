@@ -22,14 +22,14 @@
 <form method="get" class="card" role="search" aria-label="Filtrar empresas">
   <div class="barra-filtros">
     <div><label for="{{ form.q.id_for_label }}">{{ form.q.label }}</label><div class="campo-busca">{% include "carteira/_icone.html" with nome="buscar" %}{{ form.q }}</div></div>
-    <div><label for="{{ form.cidade.id_for_label }}">Município</label>{{ form.cidade }}</div>
+    <div><label for="{{ form.coordenador.id_for_label }}">{{ form.coordenador.label }}</label>{{ form.coordenador }}</div>
     <div><label for="{{ form.situacao_compra.id_for_label }}">{{ form.situacao_compra.label }}</label>{{ form.situacao_compra }}</div>
     <div><label for="{{ form.situacao_contato.id_for_label }}">{{ form.situacao_contato.label }}</label>{{ form.situacao_contato }}</div>
   </div>
-  <details class="mais-filtros" {% if form.errors or request.GET.segmento or request.GET.ramo or request.GET.uf or request.GET.vendedor or request.GET.tempo_min or request.GET.tempo_max or request.GET.tempo_desconhecido or request.GET.inativos or request.GET.revisao %}open{% endif %}>
+  <details class="mais-filtros" {% if form.errors or request.GET.segmento or request.GET.ramo or request.GET.uf or request.GET.vendedor or request.GET.cidade or request.GET.tempo_min or request.GET.tempo_max or request.GET.tempo_desconhecido or request.GET.inativos or request.GET.revisao %}open{% endif %}>
     <summary>Mais filtros</summary>
     <div class="barra-filtros" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))">
-      {% for f in form %}{% if f.name != "q" and f.name != "cidade" and f.name != "situacao_compra" and f.name != "situacao_contato" %}
+      {% for f in form %}{% if f.name != "q" and f.name != "coordenador" and f.name != "situacao_compra" and f.name != "situacao_contato" %}
       {% if f.field.widget.input_type == "checkbox" %}<div class="check"><label for="{{ f.id_for_label }}">{{ f }} {{ f.label }}</label></div>
       {% else %}<div><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% if f.help_text %}<div class="ajuda peq mut">{{ f.help_text }}</div>{% endif %}</div>{% endif %}
       {% if f.errors %}<ul class="errorlist">{% for err in f.errors %}<li>{{ err }}</li>{% endfor %}</ul>{% endif %}

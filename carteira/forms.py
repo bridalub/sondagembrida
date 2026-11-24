@@ -26,10 +26,11 @@ def _opcoes(campo):
 
 class FiltroEmpresaForm(forms.Form):
     q = forms.CharField(label="Busca (nome, CNPJ, código)", required=False)
+    coordenador = forms.ChoiceField(label="Coordenador", required=False)
     segmento = forms.ChoiceField(required=False)
     ramo = forms.ChoiceField(required=False)
     uf = forms.ChoiceField(label="UF", required=False)
-    cidade = forms.CharField(required=False)
+    cidade = forms.CharField(label="Município", required=False)
     vendedor = forms.ChoiceField(required=False)
     tempo_min = forms.IntegerField(label="Tempo de empresa ≥ (anos)", required=False, min_value=0)
     tempo_max = forms.IntegerField(label="Tempo de empresa ≤ (anos)", required=False, min_value=0)
@@ -45,7 +46,7 @@ class FiltroEmpresaForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for campo in ("segmento", "ramo", "uf", "vendedor"):
+        for campo in ("coordenador", "segmento", "ramo", "uf", "vendedor"):
             self.fields[campo].choices = _opcoes(campo)
         self.fields["dias_inatividade"].help_text = (
             f"Padrão configurado: {ConfiguracaoAnalise.obter().dias_inatividade or 'não definido'}"
@@ -63,7 +64,7 @@ class FiltroEmpresaForm(forms.Form):
             if normalizar(termo):
                 filtro |= Q(cnpj__startswith=normalizar(termo))
             qs = qs.filter(filtro)
-        for campo in ("segmento", "ramo", "uf", "vendedor"):
+        for campo in ("coordenador", "segmento", "ramo", "uf", "vendedor"):
             if d[campo] == "__vazio__":
                 qs = qs.filter(**{campo: ""})
             elif d[campo]:
