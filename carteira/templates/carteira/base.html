@@ -8,11 +8,21 @@
 <link rel="icon" href="{% static 'brida/img/marca-b.png' %}">
 <link rel="manifest" href="{% url 'pwa_manifesto' %}">
 <meta name="theme-color" content="#21275A">
+<meta name="application-name" content="Sondagem BRIDA">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Brida">
+<meta name="apple-mobile-web-app-title" content="Sondagem">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="apple-touch-icon" href="{% static 'brida/pwa/apple-touch-icon.png' %}">
+<link rel="apple-touch-icon" href="{% static 'brida/pwa/prospeccao-apple-180.png' %}">
+<script>
+/* PWA: guarda o convite de instalação do navegador para usar só quando a pessoa clicar em "Instalar aplicativo". */
+window.sondagemPwa = { convite: null };
+window.addEventListener("beforeinstallprompt", function (e) {
+  e.preventDefault();
+  window.sondagemPwa.convite = e;
+  document.dispatchEvent(new Event("sondagem:convite"));
+});
+</script>
 {% include "carteira/_estilos.html" %}
 {% block head_extra %}{% endblock %}
 </head>
@@ -76,6 +86,10 @@
   </div>
   {% endif %}
 
+  <div class="nav-instalar" id="pwa-area" hidden>
+    <button type="button" class="nav-item nav-acao" id="pwa-instalar" title="Instalar aplicativo" aria-label="Instalar aplicativo" aria-haspopup="dialog" hidden>{% include "carteira/_icone.html" with nome="instalar" %}<span>Instalar aplicativo</span></button>
+    <div class="nav-item nav-acao nav-instalado" id="pwa-instalado" title="Aplicativo instalado" role="status" hidden>{% include "carteira/_icone.html" with nome="ok" %}<span>Aplicativo instalado</span></div>
+  </div>
   <div class="nav-rodape">
     <div class="nav-usuario" title="{{ user.get_username }} ({{ papel_rotulo }})">{% include "carteira/_icone.html" with nome="usuario" %}<span>{{ user.get_username }} · {{ papel_rotulo }}</span></div>
     <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn-sair" title="Sair" aria-label="Sair">{% include "carteira/_icone.html" with nome="sair" %}<span>Sair</span></button></form>
@@ -93,6 +107,16 @@
   {% block content %}{% endblock %}
 </main>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+{% if user.is_authenticated %}
+<dialog class="pwa-dialogo" id="pwa-ajuda" aria-labelledby="pwa-ajuda-t">
+  <div class="pwa-dialogo-cab">
+    <img src="{% static 'brida/pwa/prospeccao-192.png' %}" alt="" width="44" height="44">
+    <h2 id="pwa-ajuda-t">Instalar o Sondagem BRIDA</h2>
+  </div>
+  <div id="pwa-ajuda-corpo"></div>
+  <form method="dialog" class="pwa-dialogo-acoes"><button class="btn azul" value="fechar">Entendi</button></form>
+</dialog>
+{% endif %}
 {% include "carteira/_scripts.html" %}
 <script>
 (function () {
@@ -110,10 +134,108 @@
       if (temHistorico) { e.preventDefault(); history.back(); }
     });
   }
-  /* PWA */
-  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
-    window.addEventListener("load", function () { navigator.serviceWorker.register("{% url 'pwa_sw' %}", { scope: "/" }).catch(function () {}); });
+  /* PWA: service worker (só para instalar; páginas sempre da rede) */
+  if ("serviceWorker" in navigator && window.isSecureContext) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("{% url 'pwa_sw' %}", { scope: "/", updateViaCache: "none" }).catch(function () {});
+    });
   }
+})();
+
+(function () {
+  /* PWA: botão "Instalar aplicativo" no rodapé do menu */
+  var area = document.getElementById("pwa-area");
+  if (!area) return;
+  var btn = document.getElementById("pwa-instalar"), instalado = document.getElementById("pwa-instalado");
+  var dlg = document.getElementById("pwa-ajuda"), corpo = document.getElementById("pwa-ajuda-corpo");
+  var pwa = window.sondagemPwa || (window.sondagemPwa = { convite: null });
+  var avisar = function (msg, erro) { if (window.bridaToast) window.bridaToast(msg, erro); };
+
+  function aberto_como_app() {  /* capacidade real do navegador, não preferência salva */
+    return window.matchMedia("(display-mode: standalone)").matches ||
+           window.matchMedia("(display-mode: window-controls-overlay)").matches ||
+           window.navigator.standalone === true;
+  }
+  function mostrar(estado) {
+    area.hidden = false;
+    btn.hidden = estado !== "instalar";
+    instalado.hidden = estado !== "instalado";
+  }
+  mostrar(aberto_como_app() ? "instalado" : "instalar");
+  var mm = window.matchMedia("(display-mode: standalone)");
+  var aoMudarModo = function () { mostrar(aberto_como_app() ? "instalado" : "instalar"); };
+  if (mm.addEventListener) mm.addEventListener("change", aoMudarModo); else if (mm.addListener) mm.addListener(aoMudarModo);
+
+  /* Chrome/Edge informam se este aplicativo já está instalado neste aparelho */
+  if (!aberto_como_app() && navigator.getInstalledRelatedApps) {
+    navigator.getInstalledRelatedApps().then(function (apps) {
+      if (apps && apps.length) { pwa.jaInstalado = true; }
+    }).catch(function () {});
+  }
+
+  window.addEventListener("appinstalled", function () {
+    pwa.convite = null;
+    pwa.jaInstalado = true;
+    mostrar("instalado");
+    avisar("Aplicativo instalado. Abra o Sondagem BRIDA pelo ícone na área de trabalho ou na tela inicial.");
+  });
+
+  function navegador() {
+    var ua = navigator.userAgent;
+    var ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    return {
+      ios: ios,
+      iosSafari: ios && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua),
+      android: /Android/.test(ua),
+      samsung: /SamsungBrowser/.test(ua),
+      firefox: /Firefox|FxiOS/.test(ua),
+      edge: /Edg(A|iOS)?\//.test(ua),
+      chromium: /Chrome|Chromium|CriOS/.test(ua),
+      safariMac: !ios && /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/.test(ua)
+    };
+  }
+  function passos(lista) { return "<ol>" + lista.map(function (p) { return "<li>" + p + "</li>"; }).join("") + "</ol>"; }
+  function orientacao() {
+    var n = navegador();
+    if (n.ios) {
+      return passos([
+        "Toque no botão <b>Compartilhar</b> (quadrado com uma seta para cima)" + (n.iosSafari ? ", na barra do Safari." : "."),
+        "Escolha <b>Adicionar à Tela de Início</b>.",
+        "Toque em <b>Adicionar</b>. O ícone do Sondagem aparece na tela inicial."
+      ]) + (n.iosSafari ? "" : "<p class=\"pwa-nota\">Se a opção não aparecer neste navegador, abra o endereço no <b>Safari</b> e repita.</p>");
+    }
+    if (n.android && n.samsung) return passos(["Toque no menu <b>≡</b>.", "Escolha <b>Adicionar página a</b> → <b>Tela inicial</b>."]);
+    if (n.android && n.firefox) return passos(["Toque no menu <b>⋮</b>.", "Escolha <b>Instalar</b> ou <b>Adicionar à tela inicial</b>."]);
+    if (n.android) return passos(["Toque no menu <b>⋮</b> do navegador.", "Escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.", "Confirme em <b>Instalar</b>."]);
+    if (n.edge) return passos([
+        "Clique no ícone de <b>instalar</b> na barra de endereço, à direita, ou abra o menu <b>…</b> → <b>Aplicativos</b>.",
+        "Escolha <b>Instalar Sondagem BRIDA</b> e confirme."
+      ]) + "<p class=\"pwa-nota\">Se o aplicativo já estiver instalado, o Edge mostra <b>Abrir no aplicativo</b> no lugar de instalar.</p>";
+    if (n.chromium) return passos([
+        "Clique no ícone de <b>instalar</b> na barra de endereço, à direita, ou abra o menu <b>⋮</b> → <b>Transmitir, salvar e compartilhar</b>.",
+        "Escolha <b>Instalar página como app</b> (ou <b>Instalar Sondagem BRIDA</b>) e confirme."
+      ]) + "<p class=\"pwa-nota\">Se o aplicativo já estiver instalado, o Chrome mostra <b>Abrir no aplicativo</b> no lugar de instalar.</p>";
+    if (n.safariMac) return passos(["No menu <b>Arquivo</b> do Safari, escolha <b>Adicionar ao Dock</b>.", "Confirme em <b>Adicionar</b>."]) +
+        "<p class=\"pwa-nota\">Disponível no Safari do macOS Sonoma (14) ou mais novo.</p>";
+    return "<p>Este navegador não instala aplicativos web. O Sondagem BRIDA continua funcionando normalmente por aqui, no navegador.</p>" +
+           "<p class=\"pwa-nota\">Para ter o ícone na área de trabalho, abra o sistema no <b>Chrome</b> ou no <b>Edge</b> (computador e Android) ou no <b>Safari</b> (iPhone e iPad).</p>";
+  }
+  function abrirOrientacao() {
+    corpo.innerHTML = (pwa.jaInstalado ? "<p class=\"pwa-nota\"><b>O aplicativo já está instalado neste aparelho.</b> Abra pelo ícone do Sondagem BRIDA.</p>" : "") + orientacao();
+    if (typeof dlg.showModal === "function") dlg.showModal(); else avisar(corpo.textContent);
+  }
+  if (dlg) dlg.addEventListener("close", function () { btn.focus(); });
+
+  btn.addEventListener("click", function () {
+    var convite = pwa.convite;
+    if (!convite) { abrirOrientacao(); return; }
+    pwa.convite = null;  /* o convite só pode ser usado uma vez */
+    btn.disabled = true;
+    Promise.resolve(convite.prompt()).then(function () { return convite.userChoice; }).then(function (r) {
+      if (r && r.outcome === "accepted") avisar("Instalando o Sondagem BRIDA…");
+      else avisar("Instalação cancelada. Quando quiser, é só clicar em Instalar aplicativo.");
+    }).catch(function () { abrirOrientacao(); }).then(function () { btn.disabled = false; });
+  });
 })();
 </script>
 {% block scripts %}{% endblock %}

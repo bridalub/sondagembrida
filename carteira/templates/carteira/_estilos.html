@@ -80,6 +80,28 @@ a:hover { color: var(--azul-700); }
 .nav-item.ativo { background: #fff; color: var(--azul); font-weight: 650; }
 .nav-item.ativo::before { content: ""; position: absolute; left: -8px; top: 8px; bottom: 8px; width: 4px; background: var(--laranja); border-radius: 0 3px 3px 0; }
 .nav-item:focus-visible { outline-color: var(--laranja); outline-offset: 0; }
+/* instalar aplicativo (PWA): no pé do menu, acima do usuário e do Sair */
+.nav-instalar { margin-top: auto; padding: 8px 0 6px; border-top: 1px solid #3a4180; }
+.nav-instalar[hidden] { display: none; }
+.nav-instalar:not([hidden]) + .nav-rodape { margin-top: 0; }
+.nav-acao { width: calc(100% - 16px); justify-content: flex-start; text-align: left; background: transparent; border: 0;
+  color: #dde1f0; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; line-height: 1.3; }
+.nav-acao[hidden] { display: none; }
+button.nav-acao:hover { background: var(--azul-700); color: #fff; border: 0; }
+button.nav-acao:disabled { opacity: .6; cursor: progress; }
+.nav-acao svg { color: var(--laranja); }
+.nav-instalado { cursor: default; color: #a9b0d0; font-size: 13px; }
+.nav-instalado svg { color: #8fd3ad; }
+.pwa-dialogo { width: min(92vw, 440px); border: 0; border-radius: 14px; padding: 22px 22px 18px; color: var(--tx); box-shadow: 0 24px 60px rgba(17,20,40,.35); }
+.pwa-dialogo::backdrop { background: rgba(17,20,40,.55); }
+.pwa-dialogo-cab { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.pwa-dialogo-cab img { border-radius: 10px; flex: 0 0 auto; }
+.pwa-dialogo h2 { margin: 0; font-size: 1.1rem; color: var(--azul-900); }
+.pwa-dialogo ol { margin: 0 0 10px; padding-left: 20px; line-height: 1.5; }
+.pwa-dialogo li { margin: 6px 0; }
+.pwa-dialogo p { margin: 0 0 10px; line-height: 1.5; }
+.pwa-nota { color: var(--mut); font-size: 13.5px; }
+.pwa-dialogo-acoes { display: flex; justify-content: flex-end; margin: 6px 0 0; }
 .nav-rodape { margin-top: auto; padding: 12px 14px 16px; font-size: 13px; color: #c3c8e0; border-top: 1px solid #3a4180; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .nav-rodape form { margin: 0; }
 .nav-usuario { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
@@ -112,6 +134,7 @@ a:hover { color: var(--azul-700); }
 .app.nav-recolhida .nav-sep { display: block; }
 .app.nav-recolhida .nav-item { justify-content: center; padding: 10px; margin: 2px 10px; }
 .app.nav-recolhida .nav-rodape { justify-content: center; padding: 12px 6px; }
+.app.nav-recolhida .nav-acao { width: auto; justify-content: center; padding: 10px; margin: 2px 10px; }
 .app.nav-recolhida .nav-usuario { flex: 0 0 auto; }
 .app.nav-recolhida .btn-sair { padding: 6px; }
 .btn-sair svg { display: none; }
@@ -463,6 +486,7 @@ details > summary h2 { margin: 0; }
   .app.nav-recolhida .nav-topo { flex-direction: row; padding: 16px 14px 8px; }
   .app.nav-recolhida .nav-item { justify-content: flex-start; padding: 8px 12px; margin: 1px 8px; }
   .app.nav-recolhida .nav-rodape { justify-content: flex-start; padding: 12px 14px 16px; }
+  .app.nav-recolhida .nav-acao { width: calc(100% - 16px); justify-content: flex-start; padding: 8px 12px; margin: 1px 8px; }
   .app.nav-recolhida .nav-usuario { flex: 1; }
   .nav-item { min-height: 46px; }
   h1 { font-size: 1.3rem; }
