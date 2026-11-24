@@ -406,6 +406,12 @@ details > summary::marker { color: var(--laranja-texto); }
 .contato-valor .v { font-weight: 650; overflow-wrap: anywhere; min-width: 0; }
 .contato-valor a.v { color: var(--azul-900); }
 .contato-acoes { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+/* Inside Sales: coordenador e vendedor pela região do Salesforce; trava de atendimento */
+.is-regiao { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 4px; font-size: 12.5px; color: var(--mut); }
+.is-regiao b { color: var(--azul-900); font-weight: 650; }
+.is-regiao.vazio { font-style: italic; }
+.is-trava-eu { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; font-size: 12.5px; font-weight: 600; color: var(--laranja-texto); }
+.is-trava-eu svg { width: 15px; height: 15px; }
 .icone-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 36px; min-height: 36px; padding: 4px 8px;
   border: 1px solid var(--bd-forte); border-radius: 8px; background: #fff; color: var(--azul); font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer;

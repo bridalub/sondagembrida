@@ -102,6 +102,8 @@ def inside_sales(request):
     pagina = Paginator(lista_qs.distinct(), POR_PAGINA).get_page(request.GET.get("page"))
     itens = list(pagina.object_list)
     apr.anexar_contatos(itens)
+    from prospeccao.services import regiao
+    regiao.anexar(itens)  # coordenador e vendedor pela região do Salesforce
     resultados = dict(Abordagem._meta.get_field("resultado").choices)
     canais = dict(Abordagem._meta.get_field("canal").choices)
     for o in itens:
@@ -111,6 +113,7 @@ def inside_sales(request):
         quem = at.vigente(o)
         o.trava_nome = (quem.get_full_name() or quem.get_username()) if quem else ""
         o.trava_minha = bool(quem) and quem.pk == request.user.pk
+        o.trava_desde = o.em_atendimento_desde if quem else None
         d = o.responsavel
         o.dono_nome = (d.get_full_name() or d.get_username()) if d else ""
         o.dono_outro = at.dono_de_outro(o, request.user)
@@ -142,8 +145,11 @@ def atendimento(request, pk):
     if not url_has_allowed_host_and_scheme(proximo, allowed_hosts={request.get_host()}):
         proximo = ""
     if request.POST.get("acao") == "liberar":
+        if not eh_adm(request.user):  # só ADMIN tira a marcação; quem atende segue com o lead até registrar o contato
+            messages.warning(request, "Só um ADMIN pode liberar o lead. Ele continua com você até o contato ser registrado.")
+            return redirect(proximo or "prospeccao:inside_sales")
         try:
-            at.liberar(op, request.user, forcar=eh_adm(request.user))
+            at.liberar(op, request.user, forcar=True)
             messages.success(request, f"{op.empresa.nome}: lead liberado para outro atendente.")
         except at.AtendimentoOcupado as e:
             messages.warning(request, str(e))

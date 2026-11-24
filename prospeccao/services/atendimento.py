@@ -1,9 +1,8 @@
 """Trava de atendimento: um lead só é atendido por uma pessoa de cada vez.
 
 - Quem clica em "Atender" (ou abre o registro de contato) assume o lead; os outros veem "Em atendimento por …".
-- A trava sai sozinha ao registrar o contato, ao clicar em "Liberar" ou depois de PROSPECCAO_ATENDIMENTO_MIN
-  minutos sem registro (padrão 30), para nenhum lead ficar preso se a pessoa fechar a tela.
-- O ADM pode liberar a trava de qualquer pessoa.
+- A trava sai ao registrar o contato ou quando um ADMIN clica em "Liberar" (só ADMIN libera).
+- Não vence sozinha por padrão. PROSPECCAO_ATENDIMENTO_MIN (minutos) liga um prazo automático, se um dia for preciso.
 """
 import os
 from datetime import timedelta
@@ -41,14 +40,16 @@ def dono_de_outro(op, user):
 
 
 def minutos():
+    """Prazo automático da trava em minutos; 0 = não vence (padrão: só registro do contato ou ADMIN liberam)."""
     try:
-        return max(1, int(os.getenv("PROSPECCAO_ATENDIMENTO_MIN") or 30))
+        return max(0, int(os.getenv("PROSPECCAO_ATENDIMENTO_MIN") or 0))
     except ValueError:
-        return 30
+        return 0
 
 
 def limite_validade():
-    return timezone.now() - timedelta(minutes=minutos())
+    m = minutos()
+    return timezone.now() - (timedelta(minutes=m) if m else timedelta(days=36500))
 
 
 def vigente(op):

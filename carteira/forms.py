@@ -270,32 +270,65 @@ class AbordagemForm(forms.ModelForm):
         if d.get("pessoa_telefone") and not _telefone_ok(d["pessoa_telefone"]):
             self.add_error("pessoa_telefone", "Telefone com DDD, por exemplo (11) 4002-8922 ou (11) 98765-4321.")
         # outros telefones e e-mails da empresa (vários): linhas extra_tipo / extra_valor / extra_depto
-        self.extras = []
-        def lista(chave):  # QueryDict (tela) ou dict simples (uso interno)
-            if hasattr(self.data, "getlist"):
-                return self.data.getlist(chave)
-            v = self.data.get(chave, [])
-            return list(v) if isinstance(v, (list, tuple)) else [v]
-        tipos, valores, deptos = lista("extra_tipo"), lista("extra_valor"), lista("extra_depto")
-        for i, valor in enumerate(valores):
-            valor = (valor or "").strip()
-            if not valor:
+        self.extras, erros = ler_extras(self.data)
+        for erro in erros:
+            self.add_error(None, erro)
+        return d
+
+
+
+def ler_extras(data):
+    """Linhas extra_tipo / extra_valor / extra_depto da tela -> (lista de canais válidos, mensagens de erro)."""
+    def lista(chave):  # QueryDict (tela) ou dict simples (uso interno)
+        if hasattr(data, "getlist"):
+            return data.getlist(chave)
+        v = data.get(chave, [])
+        return list(v) if isinstance(v, (list, tuple)) else [v]
+    extras, erros = [], []
+    tipos, valores, deptos = lista("extra_tipo"), lista("extra_valor"), lista("extra_depto")
+    for i, valor in enumerate(valores):
+        valor = (valor or "").strip()
+        if not valor:
+            continue
+        tipo = tipos[i] if i < len(tipos) else ""
+        depto = (deptos[i] if i < len(deptos) else "").strip()[:60]
+        if tipo == "EMAIL":
+            try:
+                validate_email(valor)
+            except forms.ValidationError:
+                erros.append(f"E-mail inválido em “Outros contatos”: {valor}")
                 continue
-            tipo = tipos[i] if i < len(tipos) else ""
-            depto = (deptos[i] if i < len(deptos) else "").strip()[:60]
-            if tipo == "EMAIL":
-                try:
-                    validate_email(valor)
-                except forms.ValidationError:
-                    self.add_error(None, f"E-mail inválido em “Outros contatos”: {valor}")
-                    continue
-            elif tipo == "TELEFONE":
-                if not _telefone_ok(valor):
-                    self.add_error(None, f"Telefone inválido em “Outros contatos”: {valor} (use DDD + número).")
-                    continue
-            else:
+        elif tipo == "TELEFONE":
+            if not _telefone_ok(valor):
+                erros.append(f"Telefone inválido em “Outros contatos”: {valor} (use DDD + número).")
                 continue
-            self.extras.append({"tipo": tipo, "valor": valor, "departamento": depto})
+        else:
+            continue
+        extras.append({"tipo": tipo, "valor": valor, "departamento": depto})
+    return extras, erros
+
+
+class DadosContatoForm(forms.Form):
+    """Só a pessoa nova e os telefones/e-mails da empresa: salvar sem registrar o atendimento."""
+    pessoa_nome = forms.CharField(required=False, max_length=200)
+    pessoa_cargo = forms.CharField(required=False, max_length=120)
+    pessoa_departamento = forms.CharField(required=False, max_length=60)
+    pessoa_telefone = forms.CharField(required=False, max_length=60)
+    pessoa_email = forms.EmailField(required=False, error_messages={"invalid": "E-mail da pessoa inválido."})
+
+    def clean(self):
+        d = super().clean()
+        if not d.get("pessoa_nome") and any(d.get(c) for c in ("pessoa_cargo", "pessoa_telefone", "pessoa_email")):
+            self.add_error(None, "Informe o nome da pessoa.")
+        if d.get("pessoa_telefone") and not _telefone_ok(d["pessoa_telefone"]):
+            self.add_error(None, "Telefone da pessoa com DDD, por exemplo (11) 4002-8922 ou (11) 98765-4321.")
+        if d.get("pessoa_departamento") and d["pessoa_departamento"] not in DEPARTAMENTOS:
+            d["pessoa_departamento"] = ""
+        self.extras, erros = ler_extras(self.data)
+        for erro in erros:
+            self.add_error(None, erro)
+        if not self.errors and not d.get("pessoa_nome") and not self.extras:
+            self.add_error(None, "Nada para salvar: preencha a pessoa nova ou um telefone/e-mail.")
         return d
 
 

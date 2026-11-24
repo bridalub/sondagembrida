@@ -167,6 +167,9 @@ def registrar_abordagem(request, pk):
             ab.validar_nova_abordagem(empresa, request.user)
         except ab.RegraAbordagemViolada as e:
             bloqueio = f"{bloqueio} {e}" if bloqueio else str(e)
+    salvou_dados = False
+    if request.method == "POST" and request.POST.get("acao") == "salvar_dados":
+        form, salvou_dados = _salvar_dados_contato(request, empresa)
     if request.method == "POST" and form.is_valid():
         abordagem = form.save(commit=False)
         abordagem.empresa = empresa
@@ -223,7 +226,7 @@ def registrar_abordagem(request, pk):
     from carteira.models import CanalEmpresa
     extras_post = [{"tipo": t, "valor": v, "departamento": d} for t, v, d in zip(
         request.POST.getlist("extra_tipo"), request.POST.getlist("extra_valor"), request.POST.getlist("extra_depto"))
-        if (v or "").strip()] if request.method == "POST" else []
+        if (v or "").strip()] if request.method == "POST" and not salvou_dados else []
     canais = list(empresa.canais.filter(tipo__in=[CanalEmpresa.Tipo.TELEFONE, CanalEmpresa.Tipo.EMAIL], restrito=False)
                   .exclude(confirmacao_humana=CanalEmpresa.Confirmacao.INCORRETO).order_by("tipo", "-preferido", "pk"))
     return render(request, "carteira/abordagem_form.html", {
@@ -237,6 +240,52 @@ def registrar_abordagem(request, pk):
         "historico": empresa.abordagens.select_related("usuario", "contato")[:10],
         "pendentes": empresa.abordagens.filter(data_retorno__isnull=False, retorno_concluido=False).count(),
     })
+
+
+_CAMPOS_CONTATO = ("data_hora", "canal", "resultado", "cnpj_confirmado", "sem_cnpj", "valor_orcamento", "valor_venda",
+                   "observacoes", "proxima_acao", "data_retorno", "contato", "concluir_pendentes", "justificativa_excecao")
+_CAMPOS_PESSOA = ("pessoa_nome", "pessoa_cargo", "pessoa_departamento", "pessoa_telefone", "pessoa_email")
+
+
+def _salvar_dados_contato(request, empresa):
+    """Botão de ícone "salvar": grava a pessoa nova e os telefones/e-mails SEM registrar o atendimento.
+    O lead continua em atendimento com quem está atendendo. Devolve (formulário para a tela, salvou?):
+    o restante do que foi digitado (resultado, observações...) volta preenchido; a pessoa e os extras salvos saem."""
+    from django.db import transaction
+    from carteira.forms import DadosContatoForm
+    dados = DadosContatoForm(request.POST)
+    iniciais = {k: request.POST.get(k) for k in _CAMPOS_CONTATO if request.POST.get(k)}
+    if not dados.is_valid():
+        for erro in dados.non_field_errors():
+            messages.error(request, erro)
+        for campo, erros in dados.errors.items():
+            if campo != "__all__":
+                messages.error(request, " ".join(erros))
+        iniciais.update({k: request.POST.get(k) for k in _CAMPOS_PESSOA if request.POST.get(k)})
+        return AbordagemForm(initial=iniciais, empresa=empresa), False
+    cd = dados.cleaned_data
+    with transaction.atomic():
+        pessoa = None
+        canais = list(dados.extras)
+        if cd.get("pessoa_nome"):
+            pessoa = ab.criar_pessoa(empresa, request.user, cd["pessoa_nome"], cd.get("pessoa_cargo", ""),
+                                     cd.get("pessoa_departamento", ""), cd.get("pessoa_telefone", ""),
+                                     cd.get("pessoa_email", ""))
+            depto = cd.get("pessoa_departamento", "")
+            if cd.get("pessoa_telefone"):
+                canais.append({"tipo": "TELEFONE", "valor": cd["pessoa_telefone"], "departamento": depto})
+            if cd.get("pessoa_email"):
+                canais.append({"tipo": "EMAIL", "valor": cd["pessoa_email"], "departamento": depto})
+        novos = ab.registrar_canais_informados(empresa, request.user, canais, pessoa)
+    partes = []
+    if pessoa is not None:
+        partes.append(f"{pessoa.nome} salvo(a) como pessoa de contato")
+        iniciais["contato"] = pessoa.pk  # já fica escolhida para quando o atendimento for registrado
+    if novos:
+        partes.append(f"{len(novos)} telefone(s)/e-mail(s) salvo(s)")
+    messages.success(request, (" e ".join(partes) or "Dados conferidos (já estavam na ficha)") +
+                     ". O atendimento ainda não foi registrado.")
+    return AbordagemForm(initial=iniciais, empresa=empresa), True
 
 
 @login_required

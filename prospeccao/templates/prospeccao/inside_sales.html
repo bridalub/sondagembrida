@@ -11,7 +11,7 @@
     {% if not eh_adm %}<a class="btn sec" href="{% url 'prospeccao:minha_performance' %}">Minha performance</a>{% endif %}
     {% if eh_adm %}<a class="btn sec" href="{% url 'prospeccao:captacao' %}">Painel de captação</a>{% endif %}</div>
 </header>
-{% if contagem.em_atendimento %}<p class="peq mut" style="margin:-6px 0 12px">{{ contagem.em_atendimento }} lead{{ contagem.em_atendimento|pluralize }} em atendimento agora. Cada lead é atendido por uma pessoa de cada vez: clique em <strong>Atender</strong> para assumir.</p>{% endif %}
+{% if contagem.em_atendimento %}<p class="peq mut" style="margin:-6px 0 12px">{{ contagem.em_atendimento }} lead{{ contagem.em_atendimento|pluralize }} em atendimento agora. Cada lead é atendido por uma pessoa de cada vez: clique em <strong>Atender</strong> para assumir. Só um ADMIN libera um lead em atendimento.</p>{% endif %}
 
 <nav class="is-abas" aria-label="Situação">
   <a href="?aba=procurar{% if querystring_sem_aba %}&amp;{{ querystring_sem_aba }}{% endif %}" {% if aba == "procurar" %}aria-current="page"{% endif %}>
@@ -52,7 +52,8 @@
   {% for o in itens %}{% with e=o.empresa c=o.contato %}
   <tr>
     <td data-label="Empresa"><a href="{% url 'prospeccao:empresa' e.pk %}"><strong>{{ e.nome_fantasia|default:e.razao_social|default:e.nome }}</strong></a>
-      {% if e.razao_social and e.nome_fantasia and e.razao_social != e.nome_fantasia %}<br><span class="mut peq">{{ e.razao_social|truncatechars:60 }}</span>{% endif %}</td>
+      {% if e.razao_social and e.nome_fantasia and e.razao_social != e.nome_fantasia %}<br><span class="mut peq">{{ e.razao_social|truncatechars:60 }}</span>{% endif %}
+      {% include "prospeccao/_regiao_sf.html" with r=o.regiao_sf %}</td>
     <td data-label="Identificação">{% if e.cnpj %}<span class="cnpj peq">{{ e.cnpj_formatado }}</span><br>{% if e.situacao_cadastral == "ATIVA" %}<span class="chip ok">CNPJ ativo</span>{% else %}<span class="chip">{{ e.situacao_cadastral|default:"situação pendente"|lower }}</span>{% endif %}
       {% else %}<span class="chip pausa">Sem CNPJ</span>{% endif %}</td>
     <td data-label="Município">{{ e.cidade|default:"—" }}{% if e.uf %}/{{ e.uf }}{% endif %}</td>
@@ -62,14 +63,15 @@
       {% if o.dono_outro %}
         <span class="chip" title="Lead reservado: só a pessoa dona ou um ADMIN registra contato">{% include "carteira/_icone.html" with nome="pessoa" %}Lead de {{ o.dono_nome }}</span>
       {% elif o.trava_nome and not o.trava_minha %}
-        <span class="chip pausa" title="Outro atendente está com este lead agora">{% include "carteira/_icone.html" with nome="pessoa" %}Em atendimento: {{ o.trava_nome }}</span>
+        <span class="chip pausa" title="Em atendimento desde {{ o.trava_desde|date:'d/m H:i' }}. Só um ADMIN pode liberar.">{% include "carteira/_icone.html" with nome="pessoa" %}Em atendimento: {{ o.trava_nome }}</span>
         {% if eh_adm %}<form method="post" action="{% url 'prospeccao:atendimento' o.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="proximo" value="{{ request.get_full_path }}"><button class="btn sec btn-mini" name="acao" value="liberar" title="ADM: tira a marcação de atendimento">Liberar</button></form>{% endif %}
       {% else %}
         <form method="post" action="{% url 'prospeccao:atendimento' o.pk %}" style="display:inline">{% csrf_token %}
           <input type="hidden" name="proximo" value="{{ request.get_full_path }}">
           <button class="btn btn-mini" name="acao" value="assumir">{% include "carteira/_icone.html" with nome="registrar" %}{% if o.trava_minha %}Continuar atendimento{% else %}Atender{% endif %}</button>
-          {% if o.trava_minha %}<button class="btn sec btn-mini" name="acao" value="liberar">Liberar</button>{% endif %}
+          {% if o.trava_minha and eh_adm %}<button class="btn sec btn-mini" name="acao" value="liberar" title="ADM: tira a marcação de atendimento">Liberar</button>{% endif %}
         </form>
+        {% if o.trava_minha %}<div class="is-trava-eu" title="Em atendimento desde {{ o.trava_desde|date:'d/m H:i' }}">{% include "carteira/_icone.html" with nome="pessoa" %}Em atendimento: você</div>{% endif %}
       {% endif %}</td>
   </tr>{% endwith %}{% endfor %}
   {% else %}
@@ -77,7 +79,8 @@
   {% for o in itens %}{% with e=o.empresa %}
   <tr>
     <td data-label="Empresa"><a href="{% url 'prospeccao:empresa' e.pk %}"><strong>{{ e.nome_fantasia|default:e.razao_social|default:e.nome }}</strong></a>
-      <br><span class="mut peq">{{ e.cidade|default:"—" }}{% if e.uf %}/{{ e.uf }}{% endif %}</span></td>
+      <br><span class="mut peq">{{ e.cidade|default:"—" }}{% if e.uf %}/{{ e.uf }}{% endif %}</span>
+      {% include "prospeccao/_regiao_sf.html" with r=o.regiao_sf %}</td>
     <td data-label="Identificação">{% if e.cnpj %}<span class="cnpj peq">{{ e.cnpj_formatado }}</span>{% else %}<span class="chip pausa">Sem CNPJ</span>{% endif %}</td>
     <td data-label="Quem atendeu"><span class="chip">{% include "carteira/_icone.html" with nome="pessoa" %}{{ o.atendente|default:"—" }}</span>
       {% if o.dono_nome %}<br><span class="mut peq">lead de {{ o.dono_nome }}</span>{% endif %}</td>

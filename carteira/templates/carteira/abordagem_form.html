@@ -13,7 +13,7 @@
 {% if e.nao_contatar %}<div class="faixa alerta" role="alert"><strong>Não contatar:</strong> {{ e.nao_contatar_motivo }}. Novas abordagens estão bloqueadas.</div>
 {% elif bloqueio %}<div class="faixa aviso" role="alert"><strong>Atenção:</strong> {{ bloqueio }}</div>{% endif %}
 {% if e.bloqueada_origem %}<div class="faixa alerta">Conta <strong>bloqueada</strong> no Protheus/Salesforce.</div>{% endif %}
-{% if op_lead and op_lead.em_atendimento_por_id == user.pk %}<div class="faixa info"><strong>Você está atendendo este lead.</strong> Os outros atendentes veem “em atendimento” e não registram contato até você salvar ou cancelar (a marcação vence sozinha em {{ minutos_trava }} min).</div>{% endif %}
+{% if op_lead and op_lead.em_atendimento_por_id == user.pk %}<div class="faixa info"><strong>Você está atendendo este lead.</strong> Os outros atendentes veem “Em atendimento: {{ user.get_full_name|default:user.get_username }}” e não registram contato. A marcação sai quando você registrar o contato{% if eh_adm %} ou liberar o lead{% else %}; só um ADMIN pode liberar antes disso{% endif %}. Use {% include "carteira/_icone.html" with nome="salvar" %} para guardar pessoas, telefones e e-mails sem registrar o atendimento.</div>{% endif %}
 
 <div class="coluna-principal">
 <form method="post" class="card" enctype="multipart/form-data" novalidate>{% csrf_token %}
@@ -75,11 +75,13 @@
       {% include "prospeccao/_campo.html" with f=form.pessoa_telefone %}
       {% include "prospeccao/_campo.html" with f=form.pessoa_email largo=True %}
     </div>
-    <p class="peq mut" style="margin:0">A pessoa fica na ficha da empresa para os próximos contatos. O telefone e o e-mail dela também entram como contatos da empresa, com o departamento.</p>
+    <div class="ab-rodape-dados"><p class="peq mut" style="margin:0">A pessoa fica na ficha da empresa para os próximos contatos. O telefone e o e-mail dela também entram como contatos da empresa, com o departamento.</p>
+    <button type="submit" class="icone-btn ab-salvar-dados" name="acao" value="salvar_dados" formnovalidate title="Salvar pessoa, telefones e e-mails (sem registrar o atendimento)" aria-label="Salvar pessoa, telefones e e-mails sem registrar o atendimento">{% include "carteira/_icone.html" with nome="salvar" %}</button></div>
   </details>
 
   <section class="ab-destaque ab-outros" aria-labelledby="t-outros">
-  <h3 id="t-outros" class="ab-destaque-tit">{% include "carteira/_icone.html" with nome="telefone" %}Outros telefones e e-mails da empresa</h3>
+  <div class="ab-cab-dados"><h3 id="t-outros" class="ab-destaque-tit">{% include "carteira/_icone.html" with nome="telefone" %}Outros telefones e e-mails da empresa</h3>
+  <button type="submit" class="icone-btn ab-salvar-dados" name="acao" value="salvar_dados" formnovalidate title="Salvar pessoa, telefones e e-mails (sem registrar o atendimento)" aria-label="Salvar pessoa, telefones e e-mails sem registrar o atendimento">{% include "carteira/_icone.html" with nome="salvar" %}</button></div>
   <p class="peq mut" style="margin:2px 0 10px">O cliente passou outro número ou e-mail (compras, manutenção, financeiro...)? Adicione quantos precisar.</p>
   <div id="extras" class="ab-extras">
     {% for x in extras_post %}
@@ -123,8 +125,9 @@
 
   <p class="peq mut" style="margin-top:12px">“Pediu para não ser contatado” marca a empresa como “não contatar”. Abrir a empresa, copiar contatos ou incluir em lista não conta como abordagem.</p>
   <div class="barra-salvar">
-    {% if op_lead and op_lead.em_atendimento_por_id == user.pk %}
+    {% if op_lead and op_lead.em_atendimento_por_id == user.pk and eh_adm %}
     <button type="submit" class="btn ghost" formaction="{% url 'prospeccao:atendimento' op_lead.pk %}" name="acao" value="liberar" formnovalidate>Cancelar e liberar o lead</button>
+    {% elif op_lead and op_lead.em_atendimento_por_id == user.pk %}<a class="btn ghost" href="{{ voltar }}" title="O lead continua em atendimento com você">Sair sem registrar</a>
     {% else %}<a class="btn ghost" href="{{ voltar }}">Cancelar</a>{% endif %}
     {% if motivos_desclassificar %}<button type="button" class="btn ghost desclass-btn" id="abrir-desclass">{% include "carteira/_icone.html" with nome="fechar" %}Desclassificar lead</button>{% endif %}
     <button type="submit" {% if e.nao_contatar %}disabled{% endif %}>{% include "carteira/_icone.html" with nome="ok" %}Salvar abordagem</button>
@@ -207,6 +210,13 @@
     .ab-extra input { grid-column: 1 / -1; grid-row: 1; }
   }
   .ab-destaque-tit { margin: 0; font-size: 1rem; color: var(--azul); display: flex; align-items: center; gap: 8px; }
+  /* salvar pessoa/telefones/e-mails sem registrar o atendimento (botão de ícone) */
+  .ab-cab-dados { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .ab-rodape-dados { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .ab-salvar-dados { flex: none; width: 42px; height: 42px; min-height: 42px; padding: 0; border: 1.5px solid var(--laranja);
+    color: var(--laranja-texto); background: #fff; border-radius: 10px; }
+  .ab-salvar-dados svg { width: 20px; height: 20px; }
+  .ab-salvar-dados:hover { background: var(--laranja); border-color: var(--laranja); color: var(--azul-900); }
   .ab-extras { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
   .ab-extra { display: grid; grid-template-columns: 130px minmax(0, 1fr) 190px 40px; gap: 8px; align-items: center; }
   @media (max-width: 700px) { .ab-extra { grid-template-columns: 1fr 1fr 40px; } .ab-extra input { grid-column: 1 / -1; grid-row: 1; } }

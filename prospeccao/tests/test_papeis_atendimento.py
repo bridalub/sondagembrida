@@ -80,15 +80,26 @@ class PapeisTests(TestCase):
         self.op.refresh_from_db()
         self.assertIsNone(self.op.em_atendimento_por)  # ADM libera
 
-    def test_trava_vence_sozinha(self):
+    def test_trava_nao_vence_sozinha(self):
+        """Só o registro do contato ou um ADMIN tiram a trava (padrão: sem prazo automático)."""
         at.assumir(self.op, self.ana)
-        Oportunidade.objects.filter(pk=self.op.pk).update(
-            em_atendimento_desde=timezone.now() - timedelta(minutes=at.minutos() + 1))
+        Oportunidade.objects.filter(pk=self.op.pk).update(em_atendimento_desde=timezone.now() - timedelta(days=3))
         self.op.refresh_from_db()
-        self.assertIsNone(at.vigente(self.op))
-        at.assumir(self.op, self.bia)  # vencida: outro pode assumir
-        self.op.refresh_from_db()
-        self.assertEqual(self.op.em_atendimento_por, self.bia)
+        self.assertEqual(at.vigente(self.op), self.ana)
+        with self.assertRaises(at.AtendimentoOcupado):
+            at.assumir(self.op, self.bia)
+
+    def test_prazo_automatico_opcional(self):
+        from unittest import mock
+        with mock.patch.dict("os.environ", {"PROSPECCAO_ATENDIMENTO_MIN": "30"}):
+            at.assumir(self.op, self.ana)
+            Oportunidade.objects.filter(pk=self.op.pk).update(
+                em_atendimento_desde=timezone.now() - timedelta(minutes=31))
+            self.op.refresh_from_db()
+            self.assertIsNone(at.vigente(self.op))
+            at.assumir(self.op, self.bia)  # vencida: outro pode assumir
+            self.op.refresh_from_db()
+            self.assertEqual(self.op.em_atendimento_por, self.bia)
 
     def test_registrar_contato_libera_a_trava(self):
         self.client.force_login(self.ana)
