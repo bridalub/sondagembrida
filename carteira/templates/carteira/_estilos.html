@@ -89,6 +89,9 @@ a:hover { color: var(--azul-700); }
 .nav-acao[hidden] { display: none; }
 button.nav-acao:hover { background: var(--azul-700); color: #fff; border: 0; }
 button.nav-acao:disabled { opacity: .6; cursor: progress; }
+button.nav-acao[aria-busy="true"] { cursor: progress; }
+button.nav-acao.pronto, button.nav-acao.pronto:hover { background: var(--laranja); color: var(--azul-900); font-weight: 700; }
+button.nav-acao.pronto svg { color: var(--azul-900); }
 .nav-acao svg { color: var(--laranja); }
 .nav-instalado { cursor: default; color: #a9b0d0; font-size: 13px; }
 .nav-instalado svg { color: #8fd3ad; }

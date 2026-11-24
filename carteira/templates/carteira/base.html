@@ -187,54 +187,63 @@ window.addEventListener("beforeinstallprompt", function (e) {
       ios: ios,
       iosSafari: ios && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua),
       android: /Android/.test(ua),
-      samsung: /SamsungBrowser/.test(ua),
-      firefox: /Firefox|FxiOS/.test(ua),
-      edge: /Edg(A|iOS)?\//.test(ua),
-      chromium: /Chrome|Chromium|CriOS/.test(ua),
+      firefoxPc: /Firefox/.test(ua) && !/Android/.test(ua),
       safariMac: !ios && /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/.test(ua)
     };
   }
-  function passos(lista) { return "<ol>" + lista.map(function (p) { return "<li>" + p + "</li>"; }).join("") + "</ol>"; }
-  function orientacao() {
-    var n = navegador();
-    if (n.ios) {
-      return passos([
-        "Toque no botão <b>Compartilhar</b> (quadrado com uma seta para cima)" + (n.iosSafari ? ", na barra do Safari." : "."),
-        "Escolha <b>Adicionar à Tela de Início</b>.",
-        "Toque em <b>Adicionar</b>. O ícone do Sondagem aparece na tela inicial."
-      ]) + (n.iosSafari ? "" : "<p class=\"pwa-nota\">Se a opção não aparecer neste navegador, abra o endereço no <b>Safari</b> e repita.</p>");
-    }
-    if (n.android && n.samsung) return passos(["Toque no menu <b>≡</b>.", "Escolha <b>Adicionar página a</b> → <b>Tela inicial</b>."]);
-    if (n.android && n.firefox) return passos(["Toque no menu <b>⋮</b>.", "Escolha <b>Instalar</b> ou <b>Adicionar à tela inicial</b>."]);
-    if (n.android) return passos(["Toque no menu <b>⋮</b> do navegador.", "Escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.", "Confirme em <b>Instalar</b>."]);
-    if (n.edge) return passos([
-        "Clique no ícone de <b>instalar</b> na barra de endereço, à direita, ou abra o menu <b>…</b> → <b>Aplicativos</b>.",
-        "Escolha <b>Instalar Sondagem BRIDA</b> e confirme."
-      ]) + "<p class=\"pwa-nota\">Se o aplicativo já estiver instalado, o Edge mostra <b>Abrir no aplicativo</b> no lugar de instalar.</p>";
-    if (n.chromium) return passos([
-        "Clique no ícone de <b>instalar</b> na barra de endereço, à direita, ou abra o menu <b>⋮</b> → <b>Transmitir, salvar e compartilhar</b>.",
-        "Escolha <b>Instalar página como app</b> (ou <b>Instalar Sondagem BRIDA</b>) e confirme."
-      ]) + "<p class=\"pwa-nota\">Se o aplicativo já estiver instalado, o Chrome mostra <b>Abrir no aplicativo</b> no lugar de instalar.</p>";
-    if (n.safariMac) return passos(["No menu <b>Arquivo</b> do Safari, escolha <b>Adicionar ao Dock</b>.", "Confirme em <b>Adicionar</b>."]) +
-        "<p class=\"pwa-nota\">Disponível no Safari do macOS Sonoma (14) ou mais novo.</p>";
-    return "<p>Este navegador não instala aplicativos web. O Sondagem BRIDA continua funcionando normalmente por aqui, no navegador.</p>" +
-           "<p class=\"pwa-nota\">Para ter o ícone na área de trabalho, abra o sistema no <b>Chrome</b> ou no <b>Edge</b> (computador e Android) ou no <b>Safari</b> (iPhone e iPad).</p>";
-  }
-  function abrirOrientacao() {
-    corpo.innerHTML = (pwa.jaInstalado ? "<p class=\"pwa-nota\"><b>O aplicativo já está instalado neste aparelho.</b> Abra pelo ícone do Sondagem BRIDA.</p>" : "") + orientacao();
-    if (typeof dlg.showModal === "function") dlg.showModal(); else avisar(corpo.textContent);
-  }
-  if (dlg) dlg.addEventListener("close", function () { btn.focus(); });
+  var rotulo = btn.querySelector("span");
+  function texto(t) { rotulo.textContent = t; btn.title = t; btn.setAttribute("aria-label", t); }
 
-  btn.addEventListener("click", function () {
-    var convite = pwa.convite;
-    if (!convite) { abrirOrientacao(); return; }
-    pwa.convite = null;  /* o convite só pode ser usado uma vez */
+  /* Instala direto pelo diálogo do próprio navegador (o convite só pode ser usado uma vez). */
+  function instalar(convite) {
+    pwa.convite = null;
     btn.disabled = true;
     Promise.resolve(convite.prompt()).then(function () { return convite.userChoice; }).then(function (r) {
       if (r && r.outcome === "accepted") avisar("Instalando o Sondagem BRIDA…");
-      else avisar("Instalação cancelada. Quando quiser, é só clicar em Instalar aplicativo.");
-    }).catch(function () { abrirOrientacao(); }).then(function () { btn.disabled = false; });
+      else avisar("Instalação cancelada.");
+    }).catch(function () {
+      avisar("O navegador não liberou a instalação agora. Clique de novo em instantes.", true);
+    }).then(function () { btn.disabled = false; texto("Instalar aplicativo"); btn.classList.remove("pronto"); });
+  }
+
+  /* Sem convite do navegador: só um aviso curto (no iPhone/iPad não existe instalação por botão). */
+  function semConvite() {
+    var n = navegador();
+    if (n.ios) {
+      corpo.innerHTML = "<p>No iPhone e no iPad a Apple só permite instalar pelo Safari: toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>.</p>";
+      if (typeof dlg.showModal === "function") dlg.showModal(); else avisar(corpo.textContent);
+    } else if (pwa.jaInstalado) {
+      avisar("O Sondagem BRIDA já está instalado neste aparelho. Abra pelo ícone dele.");
+    } else if (n.safariMac) {
+      avisar("No Safari do Mac: menu Arquivo → Adicionar ao Dock.");
+    } else if (n.firefoxPc) {
+      avisar("O Firefox não instala aplicativos. Abra o sistema no Chrome ou no Edge para instalar.", true);
+    } else {
+      avisar("O navegador não liberou a instalação. Em janela anônima não é possível instalar; se o aplicativo já estiver instalado, use \"Abrir no aplicativo\" na barra de endereço.", true);
+    }
+  }
+  if (dlg) dlg.addEventListener("close", function () { btn.focus(); });
+
+  var esperando = false;
+  btn.addEventListener("click", function () {
+    if (pwa.convite) { instalar(pwa.convite); return; }
+    var n = navegador();
+    if (n.ios || n.firefoxPc || n.safariMac || pwa.jaInstalado || esperando) { if (!esperando) semConvite(); return; }
+    /* o navegador ainda não mandou o convite (ex.: página recém-aberta): espera alguns segundos e instala */
+    esperando = true;
+    btn.setAttribute("aria-busy", "true");
+    texto("Preparando instalação…");
+    var limite;
+    function parar() { esperando = false; btn.removeAttribute("aria-busy"); document.removeEventListener("sondagem:convite", chegou); clearTimeout(limite); }
+    function chegou() {
+      parar();
+      var ativo = !navigator.userActivation || navigator.userActivation.isActive;
+      if (ativo && pwa.convite) { instalar(pwa.convite); return; }
+      texto("Instalar agora");  /* o clique anterior expirou: mais um clique instala */
+      btn.classList.add("pronto");
+    }
+    document.addEventListener("sondagem:convite", chegou);
+    limite = setTimeout(function () { parar(); texto("Instalar aplicativo"); semConvite(); }, 6000);
   });
 })();
 </script>

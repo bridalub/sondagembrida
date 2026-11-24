@@ -14,7 +14,8 @@ orçamento quando a venda chega. Assim, quem só acumula contatos não passa que
 Sequência: dias úteis seguidos (seg. a sex.) com pelo menos um contato registrado, até hoje.
 Tudo conta pelo momento em que o contato foi REGISTRADO no sistema (não pela data digitada no formulário).
 Quem participa: usuários do Inside Sales (ativos ou com contato no mês). ADMIN não entra no ranking.
-A venda é de quem atendeu o cliente (dono do lead) e vale uma vez por cliente, qualquer que seja o número de notas.
+A venda é de quem atendeu o cliente (dono do lead), para cliente novo, sem compra ou inativo há mais de 90 dias.
+Só somam as compras do MÊS DA PRIMEIRA COMPRA; do mês seguinte em diante o cliente não soma mais nada.
 """
 from collections import defaultdict
 from datetime import timedelta

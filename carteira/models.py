@@ -74,9 +74,9 @@ class ConfiguracaoAnalise(models.Model):
         help_text="Dias sem compra para considerar um comprador inativo. Vazio = não classificar inatividade.",
     )
     dias_sem_compra_captacao = models.PositiveIntegerField(
-        default=730,
+        default=90,
         help_text="Captação: cliente que já existe no Salesforce só conta como venda da prospecção se nunca comprou "
-                  "ou se está há mais que estes dias sem comprar (padrão 730 = 2 anos). Cliente ativo fica com a carteira.",
+                  "ou se está há mais que estes dias sem comprar (padrão 90 dias). Cliente ativo fica com a carteira.",
     )
     nunca_comprou_habilitado = models.BooleanField(
         default=False,

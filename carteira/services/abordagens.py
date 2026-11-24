@@ -155,7 +155,7 @@ def situacao_cliente(cnpj, na_data=None):
     if not datas:
         return S.SEM_COMPRA, None
     ultima = max(datas)
-    limite = ConfiguracaoAnalise.obter().dias_sem_compra_captacao or 730
+    limite = ConfiguracaoAnalise.obter().dias_sem_compra_captacao or 90
     return (S.INATIVO if (na_data - ultima).days > limite else S.ATIVO), ultima
 
 

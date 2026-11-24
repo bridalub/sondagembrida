@@ -11,7 +11,8 @@ depois do contato continua contando como abordada). Contas do Salesforce ficam d
   partir do primeiro contato com a empresa. A venda é atribuída a quem confirmou o CNPJ. CNPJ só encontrado na
   pesquisa (não confirmado) não conta: pode ser de outra unidade. As notas chegam pela sincronização de hora em hora.
   Só conta se, na confirmação, o cliente era NOVO (fora do Salesforce), cadastrado SEM COMPRA ou INATIVO (sem comprar
-  há mais que ConfiguracaoAnalise.dias_sem_compra_captacao). Cliente ATIVO da carteira não é captação.
+  há mais que ConfiguracaoAnalise.dias_sem_compra_captacao, padrão 90 dias). Cliente ATIVO da carteira não é captação.
+  Só contam as notas do MÊS DA PRIMEIRA COMPRA; do mês seguinte em diante o cliente não soma mais.
 Somente leitura; nada é gravado.
 """
 import calendar
@@ -66,11 +67,18 @@ def vendas_por_nf(empresas, inicio=None, fim=None, usuario=None):
     saida = {"valor": Decimal("0"), "notas": 0, "empresas": set(), "por_usuario": {}, "linhas": [],
              "ativos_ignorados": 0}
     # Cliente ATIVO da carteira (comprou dentro do limite) não é captação: as notas dele ficam fora.
-    # A situação é a gravada na confirmação; contatos antigos sem ela são classificados agora, na data do contato.
+    # A situação vem da confirmação; contatos antigos sem ela são classificados agora, na data do contato. Quem já
+    # tinha compra é reavaliado pela última compra gravada e pelo limite ATUAL (ex.: limite mudou de 730 para 90 dias).
+    from carteira.models import ConfiguracaoAnalise
+    limite = ConfiguracaoAnalise.obter().dias_sem_compra_captacao or 90
+    S = Abordagem.SituacaoCliente
     for c, a in list(confirmados.items()):
         if not a["cliente_situacao"]:
             a["cliente_situacao"], a["cliente_ultima_compra"] = situacao_cliente(
                 c, timezone.localtime(a["data_hora"]).date())
+        elif a["cliente_situacao"] in (S.ATIVO, S.INATIVO) and a["cliente_ultima_compra"]:
+            dias = (timezone.localtime(a["data_hora"]).date() - a["cliente_ultima_compra"]).days
+            a["cliente_situacao"] = S.INATIVO if dias > limite else S.ATIVO
         if a["cliente_situacao"] == Abordagem.SituacaoCliente.ATIVO:
             del confirmados[c]
             saida["ativos_ignorados"] += 1
@@ -90,6 +98,13 @@ def vendas_por_nf(empresas, inicio=None, fim=None, usuario=None):
         .values("empresa_id").annotate(m=Min("data_hora")))}
     notas = NotaFiscal.objects.filter(tipo=NotaFiscal.Tipo.VENDA, presente_na_origem=True,
                                       empresa__cnpj__in=list(confirmados))
+    # Só conta o MÊS DA PRIMEIRA COMPRA (a 1ª nota a partir do 1º contato): compras de outros dias desse mês somam;
+    # do mês seguinte em diante o cliente é da carteira e não soma mais nada.
+    primeira_compra = {}
+    for cnpj, d in notas.values_list("empresa__cnpj", "data_emissao").distinct():
+        ini = primeiro.get(confirmados[cnpj]["empresa_id"])
+        if d and (ini is None or d >= ini) and (cnpj not in primeira_compra or d < primeira_compra[cnpj]):
+            primeira_compra[cnpj] = d
     if inicio:
         notas = notas.filter(data_emissao__gte=inicio)
     if fim:
@@ -98,6 +113,9 @@ def vendas_por_nf(empresas, inicio=None, fim=None, usuario=None):
         a = confirmados[n["empresa__cnpj"]]
         if not n["data_emissao"] or n["data_emissao"] < primeiro.get(a["empresa_id"], n["data_emissao"]):
             continue  # compra anterior ao contato não é captação
+        pc = primeira_compra.get(n["empresa__cnpj"])
+        if pc and (n["data_emissao"].year, n["data_emissao"].month) != (pc.year, pc.month):
+            continue  # passou do mês da primeira compra: não soma mais
         if usuario and a["usuario__username"] != usuario:
             continue
         saida["linhas"].append({"data": n["data_emissao"], "numero": n["numero"], "valor": n["valor_total"] or 0,
