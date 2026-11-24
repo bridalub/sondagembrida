@@ -52,7 +52,8 @@
 .gm-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 2px 0 10px; }
 .gm-cab h2 { margin: 0; font-size: 1.15rem; }
 .gm-grade { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: stretch; }
-.gm-grade2 { align-items: start; }
+.gm-grade2 { align-items: stretch; }  /* Ranking e Você × média com a mesma altura */
+.gm-grade2 > .gm-card { display: flex; flex-direction: column; }
 /* conquistas com a mesma altura do cartão azul: os selos ocupam a altura toda */
 .gm-grade > .gm-card { display: flex; flex-direction: column; }
 .gm-grade > .gm-card .gm-conq { flex: 1; grid-auto-rows: 1fr; }
@@ -97,7 +98,10 @@
 .gm-mini div { padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .08); }
 .gm-mini b { display: block; font-size: 1.15rem; }
 .gm-mini span { font-size: 11.5px; opacity: .75; line-height: 1.2; display: block; }
-.gm-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.gm-rank { list-style: none; margin: 0; padding: 2px; display: flex; flex-direction: column; gap: 6px; }
+/* no máximo 6 pessoas à vista; o resto pela rolagem (altura exata medida no script abaixo) */
+.gm-rank.rola { overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 6px; scrollbar-width: thin; scrollbar-color: #c6cad8 transparent; }
+.gm-rank.rola:focus-visible { outline-offset: 2px; }
 .gm-rank li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 9px 10px; border-radius: 10px;
   transition: background .15s; }
 .gm-rank li:hover { background: #f6f7fb; }
@@ -242,7 +246,7 @@
     <div class="gm-card">
       <h3 class="mk-tit">Ranking da equipe</h3>
       {% if jogo.ranking %}
-      <ol class="gm-rank">
+      <ol class="gm-rank" id="gm-rank" aria-label="Ranking da equipe">
         {% for x in jogo.ranking %}
         <li class="{% if eu and x.pk == eu.pk %}eu{% endif %}">
           <span class="gm-medalha m{{ x.posicao }}">{{ x.posicao }}</span>
@@ -312,6 +316,25 @@
   </div>
 </div>
 <script>
+// Ranking da equipe: no máximo 6 pessoas à vista, o resto com barra de rolagem
+(function () {
+  var MAX = 6, ol = document.getElementById("gm-rank");
+  if (!ol) return;
+  function ajustar() {
+    var itens = ol.children;
+    if (itens.length <= MAX) { ol.classList.remove("rola"); ol.style.maxHeight = ""; ol.removeAttribute("tabindex"); return; }
+    var st = getComputedStyle(ol), gap = parseFloat(st.rowGap) || 0, h = parseFloat(st.paddingTop) + parseFloat(st.paddingBottom);
+    for (var i = 0; i < MAX; i++) h += itens[i].offsetHeight + (i ? gap : 0);
+    ol.style.maxHeight = Math.ceil(h) + "px";
+    ol.classList.add("rola");
+    ol.tabIndex = 0;  // rolagem também pelo teclado
+  }
+  ajustar();
+  var eu = ol.querySelector("li.eu");  // quem está abaixo da 6ª posição já vê a própria linha
+  if (eu && Array.prototype.indexOf.call(ol.children, eu) >= MAX) ol.scrollTop = eu.offsetTop - ol.offsetTop - ol.clientHeight / 2 + eu.offsetHeight / 2;
+  var t; window.addEventListener("resize", function () { clearTimeout(t); t = setTimeout(ajustar, 120); });
+})();
+
 // "Regra de pontuação" fecha ao clicar fora ou com Esc
 (function () {
   var r = document.querySelector(".mp-regra");
